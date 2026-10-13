@@ -19,7 +19,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 # ------------------------- NASTAVENIA -------------------------
-EXCEL_FOLDER = Path(r"C:\Smenovka")      # priečinok, kde ukladáš mesačné Excely
+EXCEL_FOLDER = Path(r"C:\Users\Gastro\Desktop\PLANOVANIE A ODMENY NEW")      # priečinok, kde ukladáš mesačné Excely
 PUSH = True                               # True = po zmene sám nahrá web na GitHub
 PUSH_EVERY_MINUTES = 60                   # zmeny sa na web nahrávajú najviac raz za toto obdobie
 POLL_SECONDS = 20                         # ako často kontroluje priečinok
