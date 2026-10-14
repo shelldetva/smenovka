@@ -1,165 +1,230 @@
 <!DOCTYPE html>
 <html lang="sk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smenovka a odmeny</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
-      padding: 24px;
-    }
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    h1 {
-      font-size: 26px;
-      font-weight: 800;
-      color: #0f172a;
-      letter-spacing: -0.5px;
-    }
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .month-btn {
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      padding: 7px 18px;
-      border-radius: 20px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      color: #475569;
-      transition: all 0.15s ease;
-    }
-    .month-btn:hover { background: #f1f5f9; }
-    .month-btn.active {
-      background: #0f766e;
-      border-color: #0f766e;
-      color: #ffffff;
-    }
-    .print-btn {
-      background: #ffffff;
-      border: 1px solid #cbd5e1;
-      padding: 7px 16px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      color: #334155;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .print-btn:hover { background: #f1f5f9; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smenovka a odmeny</title>
+<style>
+:root{
+  --ink:#16181d; --muted:#6b7280; --line:#e5e7eb; --paper:#f6f5f2; --card:#fff;
+  --brand:#ffc600; --brand-ink:#3b2f00; --red:#dd1d21;
+  --past-bg:#eceef0; --past-ink:#a4abb3;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  background:var(--paper);color:var(--ink);padding:24px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.wrap{max-width:1500px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:16px;
+  border-left:6px solid var(--brand);padding-left:14px}
+h1{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.sub{font-size:13px;color:var(--muted);margin-top:4px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#month-list{display:flex;gap:6px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.month-btn,.print-btn{border:1px solid #d4d7dc;background:var(--card);color:#374151;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600}
+.month-btn:hover,.print-btn:hover{background:#f0f1f3}
+.month-btn.active{background:var(--ink);border-color:var(--ink);color:#fff}
+.print-btn{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+.print-btn:hover{background:#f0b900}
+button:focus-visible{outline:3px solid var(--red);outline-offset:2px}
 
-    .legend {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-bottom: 18px;
-      font-size: 12px;
-      color: #475569;
-    }
-    .pill {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 4px;
-      font-weight: 700;
-      font-size: 11px;
-    }
-    .pill-d   { background: #fef08a; color: #854d0e; }
-    .pill-dvo { background: #bbf7d0; color: #166534; }
-    .pill-n   { background: #e0e7ff; color: #3730a3; }
-    .pill-pol { background: #bae6fd; color: #075985; }
-    .pill-dov { background: #fed7aa; color: #9a3412; }
-    .pill-x   { background: #f1f5f9; color: #94a3b8; }
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#4b5563;margin-bottom:14px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.pill{display:inline-block;min-width:26px;padding:3px 6px;border-radius:6px;font-weight:700;font-size:11px;line-height:1.2}
+.p-d{background:#ffe27a;color:#6b4e00}
+.p-dvo{background:#bff0cf;color:#14532d}
+.p-n{background:#c7d2fe;color:#312e81}
+.p-pol{background:#b6e3f7;color:#0c4a6e}
+.p-dov{background:#fdc9a0;color:#7c2d12}
+.p-x{background:#f1f2f4;color:#9aa1ab}
 
-    .card {
-      background: #ffffff;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-      margin-bottom: 24px;
-      overflow: hidden;
-    }
-    .card-header {
-      padding: 14px 18px;
-      font-size: 15px;
-      font-weight: 700;
-      color: #1e293b;
-      border-bottom: 1px solid #e2e8f0;
-    }
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:22px;overflow:hidden}
+.card-h{padding:14px 18px;font-size:16px;font-weight:700;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.card-h small{font-weight:400;font-size:12px;color:var(--muted)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:separate;border-spacing:0;text-align:center;font-size:12px}
+th,td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:5px 2px;min-width:30px}
+th{background:#fafafa;font-weight:600;color:#4b5563;line-height:1.25}
+th .dn{display:block;font-size:13px;font-weight:700;color:var(--ink)}
+th .dw{display:block;font-size:10px;font-weight:500;color:var(--muted)}
+.emp{text-align:left;font-weight:600;min-width:170px;max-width:170px;padding-left:14px;position:sticky;left:0;background:#fff;z-index:2;border-right:2px solid #d4d7dc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+th.emp{background:#fafafa}
+.we{background:#faf9f6}
+th.we{background:#f3f1ea}
+th.today{background:var(--brand)}
+th.today .dn,th.today .dw{color:var(--brand-ink)}
+/* uplynulé dni = sivé */
+td.past,th.past{background:var(--past-bg)!important;color:var(--past-ink)!important}
+th.past .dn,th.past .dw{color:var(--past-ink)!important}
+.past .pill{background:#dcdfe3!important;color:var(--past-ink)!important}
+tbody tr:last-child td{border-bottom:none}
+.foot{padding:10px 18px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
 
-    /* UKOTVENÁ MRIEŽKA */
-    .table-responsive {
-      width: 100%;
-      max-height: 72vh;
-      overflow: auto;
-      position: relative;
-    }
-    table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      text-align: center;
-      font-size: 12px;
-    }
-    th, td {
-      border-right: 1px solid #e2e8f0;
-      border-bottom: 1px solid #e2e8f0;
-      padding: 6px 3px;
-      min-width: 28px;
-    }
-    th {
-      background: #f8fafc;
-      font-weight: 600;
-      color: #64748b;
-      font-size: 11px;
-    }
+.rw{cursor:pointer}.rw:hover td{background:#fafafa}
+.rw td.emp{background:inherit}
+.dt{display:none;background:#fafafa}
+.dt td{text-align:left;padding:10px 14px}
+.chip{display:inline-block;margin:3px 6px 3px 0;padding:5px 9px;border-radius:8px;background:#fff;border:1px solid var(--line);font-size:12px}
 
-    /* Ukotvenie riadku s číslami dní */
-    #row-days th {
-      position: sticky;
-      top: 0;
-      background: #f1f5f9;
-      z-index: 10;
-      border-bottom: 1px solid #cbd5e1;
-    }
-    /* Ukotvenie riadku so skratkami dní v týždni */
-    #row-dows th {
-      position: sticky;
-      top: 29px;
-      background: #f8fafc;
-      z-index: 10;
-      border-bottom: 2px solid #cbd5e1;
-    }
+@media (max-width:700px){body{padding:12px}h1{font-size:22px}}
 
-    /* Ukotvenie stĺpca s menami zamestnancov vľavo */
-    th.emp-col, td.emp-col {
-      text-align: left;
-      font-weight: 600;
-      min-width: 170px;
-      max-width: 170px;
-      padding-left: 12px;
-      position: sticky;
-      left: 0;
-      background: #ffffff;
-      z-index: 5;
-      border-right
+@media print{
+  @page{size:A4 landscape;margin:6mm}
+  html,body{background:#fff!important;padding:0!important;color:#000}
+  .controls,.rewards,.foot{display:none!important}
+  .wrap{max-width:none}
+  header{margin-bottom:6px;padding-left:8px;border-left-width:4px}
+  h1{font-size:16pt}
+  .sub{font-size:8pt;margin-top:1px}
+  .legend{font-size:7pt;gap:10px;margin-bottom:5px}
+  .pill{font-size:6.5pt;padding:1px 3px;min-width:0}
+  .card{border:none;border-radius:0;margin:0;overflow:visible}
+  .card-h{padding:0 0 4px;border:none;font-size:10pt}
+  .tw{overflow:visible!important}
+  table{table-layout:fixed;font-size:7pt;border-collapse:collapse}
+  th,td{border:1px solid #cfd3d8;padding:2.2mm 0;min-width:0}
+  th{padding:1mm 0}
+  th .dn{font-size:7.5pt}th .dw{font-size:6pt}
+  .emp{position:static;width:34mm;min-width:34mm;max-width:34mm;font-size:7.5pt;padding-left:1.5mm;border-right:1.5px solid #9ca3af}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Smenovka a odmeny</h1>
+      <div class="sub" id="upd"></div>
+    </div>
+    <div class="controls">
+      <div id="month-list"></div>
+      <button class="print-btn" onclick="window.print()">🖨️ Tlačiť na A4</button>
+    </div>
+  </header>
+
+  <div class="legend">
+    <span><i class="pill p-d">D</i> denná 5:00–18:00</span>
+    <span><i class="pill p-dvo">D-VO</i> denná vonku</span>
+    <span><i class="pill p-n">N</i> nočná 18:00–6:00</span>
+    <span><i class="pill p-pol">POL</i> polnočná</span>
+    <span><i class="pill p-dov">DOV</i> dovolenka</span>
+    <span><i class="pill p-x">X</i> nedostupný</span>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span id="title">Rozpis zmien</span></div>
+    <div class="tw">
+      <table>
+        <thead><tr id="head"></tr></thead>
+        <tbody id="body"><tr><td colspan="32" style="padding:24px;color:#6b7280">Načítavam rozpis…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="foot">Sivé dni už uplynuli. Žlté záhlavie je dnešný deň.</div>
+  </div>
+
+  <div class="card rewards">
+    <div class="card-h"><span>Odmeny: vnútorná obsluha</span><small>Kliknutím na meno uvidíš rozpis podľa kategórií</small></div>
+    <div class="tw"><table><thead><tr><th class="emp">Pracovník</th><th>Poradie</th><th>Plnenie</th><th>Bonus celkom</th></tr></thead><tbody id="vno"></tbody></table></div>
+  </div>
+
+  <div class="card rewards">
+    <div class="card-h"><span>Odmeny: vonkajšia obsluha</span><small>Kliknutím na meno uvidíš rozpis podľa kategórií</small></div>
+    <div class="tw"><table><thead><tr><th class="emp">Pracovník</th><th>Poradie</th><th>Plnenie</th><th>Bonus celkom</th></tr></thead><tbody id="vo"></tbody></table></div>
+  </div>
+</div>
+
+<script>
+const DOW=["ne","po","ut","st","št","pi","so"];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function pill(code){
+  const c=code.toUpperCase();
+  // dlhšie kódy musia byť skôr než kratšie (DOV a D-VO pred D)
+  if(c.startsWith("D-VO"))return"p-dvo";
+  if(c.startsWith("DOV"))return"p-dov";
+  if(c.startsWith("POL"))return"p-pol";
+  if(c.startsWith("D"))return"p-d";
+  if(c.startsWith("N"))return"p-n";
+  if(c.startsWith("X"))return"p-x";
+  return"";
+}
+function isPast(y,m,d){
+  const n=new Date();
+  return new Date(y,m,d)<new Date(n.getFullYear(),n.getMonth(),n.getDate());
+}
+function isToday(y,m,d){
+  const n=new Date();
+  return y===n.getFullYear()&&m===n.getMonth()&&d===n.getDate();
+}
+
+async function showMonth(id){
+  const body=document.getElementById("body");
+  try{
+    const r=await fetch(`./data/${id}.json?v=${Date.now()}`);
+    if(!r.ok)throw 0;
+    const data=await r.json();
+    document.getElementById("title").textContent="Rozpis zmien – "+data.label;
+    if(data.updated){
+      const u=new Date(data.updated);
+      document.getElementById("upd").textContent="Aktualizované "+u.toLocaleString("sk-SK",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"});
+    }
+    const cls=d=>{
+      const w=new Date(data.y,data.m,d).getDay();
+      return[(w===0||w===6)?"we":"",isPast(data.y,data.m,d)?"past":"",isToday(data.y,data.m,d)?"today":""].join(" ").trim();
+    };
+    document.getElementById("head").innerHTML='<th class="emp">Zamestnanec</th>'+
+      data.days.map(d=>`<th class="${cls(d)}"><span class="dn">${d}</span><span class="dw">${DOW[new Date(data.y,data.m,d).getDay()]}</span></th>`).join("");
+    body.innerHTML=data.shifts.map(row=>
+      `<tr><td class="emp">${esc(row.n)}</td>`+
+      data.days.map(d=>{
+        const v=row.s[d]||"";
+        return`<td class="${cls(d).replace("today","").trim()}">${v?`<span class="pill ${pill(v)}">${esc(v)}</span>`:""}</td>`;
+      }).join("")+"</tr>").join("");
+    rewards(data.vno,"vno");
+    rewards(data.vo,"vo");
+  }catch(e){
+    body.innerHTML='<tr><td colspan="32" style="padding:24px;color:#dc2626">Dáta pre vybraný mesiac sa nepodarilo načítať.</td></tr>';
+  }
+}
+
+function rewards(list,id){
+  const tb=document.getElementById(id);
+  if(!list||!list.length){tb.innerHTML='<tr><td colspan="4" style="padding:14px;color:#6b7280">Žiadne záznamy odmien.</td></tr>';return;}
+  tb.innerHTML=list.map((it,i)=>{
+    const sid=`${id}-${i}`, has=it.c&&it.c.length;
+    let h=`<tr class="rw" onclick="tog('${sid}')"><td class="emp">${esc(it.n)}${has?' <span style="font-size:10px;color:#9aa1ab">▼</span>':""}</td>
+      <td>${it.rank!=null?it.rank+".":"-"}</td>
+      <td>${it.pl?(it.pl*100).toFixed(1)+" %":"-"}</td>
+      <td><strong>${it.tot!=null?it.tot.toFixed(2)+" €":"-"}</strong></td></tr>`;
+    if(has)h+=`<tr id="${sid}" class="dt"><td colspan="4">`+it.c.map(c=>
+      `<span class="chip"><strong>${esc(c[0])}:</strong> plán ${c[1]} · skutočnosť ${c[2]} (${(c[3]*100).toFixed(0)} %) · <strong>${c[4].toFixed(2)} €</strong></span>`).join("")+"</td></tr>";
+    return h;
+  }).join("");
+}
+function tog(id){const e=document.getElementById(id);if(e)e.style.display=e.style.display==="table-row"?"none":"table-row";}
+
+async function init(){
+  const nav=document.getElementById("month-list");
+  try{
+    const r=await fetch(`./data/index.json?v=${Date.now()}`);
+    if(!r.ok)throw 0;
+    const idx=await r.json();
+    if(!idx.months||!idx.months.length){document.getElementById("body").innerHTML='<tr><td colspan="32" style="padding:24px;color:#6b7280">Žiadne dostupné smenovky.</td></tr>';return;}
+    const n=new Date(), cur=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`;
+    const pick=idx.months.find(m=>m.id===cur)||idx.months[0];
+    idx.months.forEach(m=>{
+      const b=document.createElement("button");
+      b.className="month-btn"+(m.id===pick.id?" active":"");
+      b.textContent=m.label;
+      b.onclick=()=>{nav.querySelectorAll(".month-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active");showMonth(m.id);};
+      nav.appendChild(b);
+    });
+    showMonth(pick.id);
+  }catch(e){
+    document.getElementById("body").innerHTML='<tr><td colspan="32" style="padding:24px;color:#dc2626">Chyba načítania zoznamu mesiacov.</td></tr>';
+  }
+}
+init();
+</script>
+</body>
+</html>
