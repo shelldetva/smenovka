@@ -19,10 +19,9 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 # ------------------------- NASTAVENIA -------------------------
-# Sem vlož svoju presnú cestu k priečinku s Excelmi:
 EXCEL_FOLDER = Path(r"C:\Users\Gastro\Desktop\PLANOVANIE A ODMENY NEW")
 PUSH = True                               # True = po zmene sám nahrá web na GitHub
-PUSH_EVERY_MINUTES = 60                   # zmeny sa na web nahrávajú najviac raz za toto obdobie
+PUSH_EVERY_MINUTES = 0                    # 0 = odosiela zmeny ihneď po uložení
 POLL_SECONDS = 20                         # ako často kontroluje priečinok
 # --------------------------------------------------------------
 
@@ -102,7 +101,7 @@ def read_rewards(ws, key):
 
 
 def read_month(path, year, month):
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp:    # kópia, aby nevadil otvorený Excel
         copy = Path(tmp) / "x.xlsx"
         shutil.copy2(path, copy)
         wb = load_workbook(copy, data_only=True)
@@ -113,3 +112,89 @@ def read_month(path, year, month):
         "y": year, "m": month - 1, "days": days, "shifts": shifts,
         "vno": read_rewards(su, "VNUTORNA"), "vo": read_rewards(su, "VONKAJSIA"),
     }
+
+
+def digest(d):
+    return hashlib.md5(json.dumps(d, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def process_all():
+    DATA.mkdir(parents=True, exist_ok=True)
+    changed, months = False, []
+
+    # Aktuálny rok a mesiac: 1 mesiac dozadu až 2 mesiace dopredu (-1, 0, +1, +2)
+    today = datetime.date.today()
+    curr_idx = today.year * 12 + (today.month - 1)
+    valid_range = {curr_idx - 1, curr_idx, curr_idx + 1, curr_idx + 2}
+
+    for f in sorted(EXCEL_FOLDER.glob("Master_Smenovka_*.xlsx")):
+        m = FILE_RE.match(f.name)
+        if not m:
+            continue
+        year, month = int(m.group(1)), int(m.group(2))
+        f_idx = year * 12 + (month - 1)
+
+        # Vyfiltruj iba povolené mesiace (-1 až +2)
+        if f_idx not in valid_range:
+            continue
+
+        data = read_month(f, year, month)
+        months.append({"id": data["id"], "label": data["label"]})
+        target = DATA / f"{data['id']}.json"
+        old = json.loads(target.read_text("utf-8")) if target.exists() else {}
+        old.pop("updated", None)
+        if digest(old) != digest(data):
+            data["updated"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+            target.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), "utf-8")
+            print(time.strftime("%H:%M:%S"), "aktualizované:", f.name)
+            changed = True
+
+    index = DATA / "index.json"
+    new_index = json.dumps({"months": months}, ensure_ascii=False)
+    if not index.exists() or index.read_text("utf-8") != new_index:
+        index.write_text(new_index, "utf-8")
+        changed = True
+    return changed
+
+
+def push():
+    for cmd in (["git", "add", "-A"],
+                ["git", "commit", "-m", "aktualizácia smenovky"],
+                ["git", "push"]):
+        r = subprocess.run(cmd, cwd=BASE, capture_output=True, text=True)
+        if r.returncode and "nothing to commit" not in (r.stdout + r.stderr):
+            print("Git zlyhal:", (r.stderr or r.stdout).strip())
+            return False
+    print(time.strftime("%H:%M:%S"), "web nahraný, na adrese bude za minútu-dve")
+    return True
+
+
+def signature():
+    return tuple((p.name, p.stat().st_mtime) for p in sorted(EXCEL_FOLDER.glob("Master_Smenovka_*.xlsx")))
+
+
+def main():
+    once = "--once" in sys.argv
+    last, pending, last_push = None, False, 0.0
+    print("Sledujem priečinok:", EXCEL_FOLDER)
+    while True:
+        try:
+            sig = signature()
+            settled = all(time.time() - mt > 5 for _, mt in sig)   # počká na dokončenie ukladania v Exceli
+            if sig != last and settled:
+                if process_all():
+                    pending = True
+                last = sig
+            due = time.time() - last_push >= PUSH_EVERY_MINUTES * 60
+            if pending and PUSH and (due or once):
+                if push():
+                    pending, last_push = False, time.time()
+        except Exception as e:
+            print(time.strftime("%H:%M:%S"), "čakám:", e)
+        if once:
+            break
+        time.sleep(POLL_SECONDS)
+
+
+if __name__ == "__main__":
+    main()
