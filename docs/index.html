@@ -53,6 +53,16 @@ th.emp{background:#fafafa}
 th.we{background:#f3f1ea}
 th.today{background:var(--brand)}
 th.today .dn,th.today .dw{color:var(--brand-ink)}
+#body .emp{cursor:pointer}
+#body tr:hover .emp{text-decoration:underline}
+.mebar{display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 18px;background:#fff8d6;border-bottom:1px solid var(--line);font-size:13px}
+.mebar button{border:1px solid #d4d7dc;background:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600}
+td.chg{position:relative}
+td.chg::after{content:"";position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+.chgbox{display:none}
+.chgbox ul{list-style:none;padding:12px 18px}
+.chgbox li{padding:4px 0;font-size:13px}
+.chgbox .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:8px}
 /* uplynulé dni = sivé */
 td.past,th.past{background:var(--past-bg)!important;color:var(--past-ink)!important}
 th.past .dn,th.past .dw{color:var(--past-ink)!important}
@@ -71,7 +81,7 @@ tbody tr:last-child td{border-bottom:none}
 @media print{
   @page{size:A4 landscape;margin:6mm}
   html,body{background:#fff!important;padding:0!important;color:#000}
-  .controls,.rewards,.foot{display:none!important}
+  .controls,.rewards,.foot,.chgbox,.mebar{display:none!important}
   .wrap{max-width:none}
   header{margin-bottom:6px;padding-left:8px;border-left-width:4px}
   h1{font-size:16pt}
@@ -112,7 +122,8 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 
   <div class="card">
-    <div class="card-h"><span id="title">Rozpis zmien</span></div>
+    <div class="card-h"><span id="title">Rozpis zmien</span><small>Klikni na svoje meno a uvidíš len svoje smeny</small></div>
+    <div class="mebar" id="mebar"></div>
     <div class="tw">
       <table>
         <thead><tr id="head"></tr></thead>
@@ -120,6 +131,11 @@ tbody tr:last-child td{border-bottom:none}
       </table>
     </div>
     <div class="foot">Sivé dni už uplynuli. Žlté záhlavie je dnešný deň.</div>
+  </div>
+
+  <div class="card chgbox" id="chgbox">
+    <div class="card-h"><span>Nedávne zmeny v rozpise</span><small>zobrazujú sa 48 hodín</small></div>
+    <ul id="chglist"></ul>
   </div>
 
   <div class="card rewards">
@@ -135,6 +151,8 @@ tbody tr:last-child td{border-bottom:none}
 
 <script>
 const DOW=["ne","po","ut","st","št","pi","so"];
+let me="",cache=null;
+try{me=localStorage.getItem("me")||""}catch(e){}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 function pill(code){
@@ -175,16 +193,53 @@ async function showMonth(id){
     document.getElementById("head").innerHTML='<th class="emp">Zamestnanec</th>'+
       data.days.map(d=>`<th class="${cls(d)}"><span class="dn">${d}</span><span class="dw">${DOW[new Date(data.y,data.m,d).getDay()]}</span></th>`).join("");
     body.innerHTML=data.shifts.map(row=>
-      `<tr><td class="emp">${esc(row.n)}</td>`+
+      `<tr data-n="${esc(row.n)}"><td class="emp" onclick="pick(this.parentNode.dataset.n)">${esc(row.n)}</td>`+
       data.days.map(d=>{
         const v=row.s[d]||"";
-        return`<td class="${cls(d).replace("today","").trim()}">${v?`<span class="pill ${pill(v)}">${esc(v)}</span>`:""}</td>`;
+        const c=fresh(data,row.n,d);
+        return`<td class="${(cls(d).replace("today","")+(c?" chg":"")).trim()}"${c?` title="Bolo: ${esc(c.was)}"`:""}>${v?`<span class="pill ${pill(v)}">${esc(v)}</span>`:""}</td>`;
       }).join("")+"</tr>").join("");
     rewards(data.vno,"vno");
     rewards(data.vo,"vo");
+    cache=data;
+    applyMe();
   }catch(e){
     body.innerHTML='<tr><td colspan="32" style="padding:24px;color:#dc2626">Dáta pre vybraný mesiac sa nepodarilo načítať.</td></tr>';
   }
+}
+
+const HOURS48=48*3600*1000;
+function fresh(data,name,d){
+  const c=data.changes&&data.changes[name]&&data.changes[name][d];
+  if(!c||Date.now()-new Date(c.at)>HOURS48)return null;
+  return isPast(data.y,data.m,d)?null:c;
+}
+function changes(data){
+  const items=[];
+  data.shifts.forEach(row=>data.days.forEach(d=>{
+    if(me&&row.n!==me)return;
+    const c=fresh(data,row.n,d);
+    if(c)items.push(`<li><span class="dot"></span><strong>${esc(row.n)}</strong>, ${d}. ${data.m+1}.: bolo <span class="pill ${pill(c.was)}">${esc(c.was)}</span> teraz <span class="pill ${pill(row.s[d]||"-")}">${esc(row.s[d]||"-")}</span></li>`);
+  }));
+  document.getElementById("chglist").innerHTML=items.join("");
+  document.getElementById("chgbox").style.display=items.length?"block":"none";
+}
+
+function pick(name){
+  me=(me===name)?"":name;
+  try{me?localStorage.setItem("me",me):localStorage.removeItem("me")}catch(e){}
+  applyMe();
+}
+function applyMe(){
+  const rows=document.querySelectorAll("#body tr[data-n]");
+  if(me&&![...rows].some(r=>r.dataset.n===me))me="";   // meno v tomto mesiaci nie je
+  rows.forEach(r=>r.style.display=(me&&r.dataset.n!==me)?"none":"");
+  const bar=document.getElementById("mebar");
+  if(me){
+    bar.style.display="flex";
+    bar.innerHTML=`<span>Zobrazené sú iba smeny: <strong>${esc(me)}</strong></span><button onclick="pick(me)">Zobraziť všetkých</button>`;
+  }else bar.style.display="none";
+  if(cache)changes(cache);
 }
 
 function rewards(list,id){

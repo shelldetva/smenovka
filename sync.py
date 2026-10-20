@@ -118,6 +118,35 @@ def digest(d):
     return hashlib.md5(json.dumps(d, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
+CHANGE_HOURS = 48                         # ako dlho sa zmena na webe zvýrazňuje
+
+
+def merge_changes(old_full, data, today):
+    """Zmenené smeny (dnes a v budúcnosti) + pôvodná hodnota; staré záznamy po 48 h zmiznú."""
+    now = datetime.datetime.now().astimezone()
+    limit = datetime.timedelta(hours=CHANGE_HOURS)
+    ch = {}
+    for name, days in (old_full.get("changes") or {}).items():
+        for day, info in days.items():
+            try:
+                fresh = now - datetime.datetime.fromisoformat(info["at"]) < limit
+                future = datetime.date(data["y"], data["m"] + 1, int(day)) >= today
+            except Exception:
+                continue
+            if fresh and future:
+                ch.setdefault(name, {})[day] = info
+    old_map = {e["n"]: e["s"] for e in old_full.get("shifts", [])}
+    if old_map:                                   # nový mesiac sa neoznačuje
+        for e in data["shifts"]:
+            if e["n"] not in old_map:             # nový zamestnanec sa neoznačuje
+                continue
+            for d in data["days"]:
+                new, prev = e["s"].get(str(d), ""), old_map[e["n"]].get(str(d), "")
+                if new != prev and datetime.date(data["y"], data["m"] + 1, d) >= today:
+                    ch.setdefault(e["n"], {})[str(d)] = {"was": prev or "-", "at": now.isoformat(timespec="seconds")}
+    return ch
+
+
 def process_all():
     DATA.mkdir(parents=True, exist_ok=True)
     changed, months = False, []
@@ -141,9 +170,12 @@ def process_all():
         data = read_month(f, year, month)
         months.append({"id": data["id"], "label": data["label"]})
         target = DATA / f"{data['id']}.json"
-        old = json.loads(target.read_text("utf-8")) if target.exists() else {}
+        old_full = json.loads(target.read_text("utf-8")) if target.exists() else {}
+        old = dict(old_full)
         old.pop("updated", None)
+        old.pop("changes", None)
         if digest(old) != digest(data):
+            data["changes"] = merge_changes(old_full, data, today)
             data["updated"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
             target.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), "utf-8")
             print(time.strftime("%H:%M:%S"), "aktualizované:", f.name)
