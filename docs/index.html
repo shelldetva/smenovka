@@ -74,6 +74,8 @@ tbody tr:last-child td{border-bottom:none}
 .rw td.emp{background:inherit}
 .dt{display:none;background:#fafafa}
 .dt td{text-align:left;padding:10px 14px}
+.gap{display:block;margin-top:4px;font-size:12px;color:#92400e}
+.ok{color:#15803d;font-weight:700}
 .chip{display:inline-block;margin:3px 6px 3px 0;padding:5px 9px;border-radius:8px;background:#fff;border:1px solid var(--line);font-size:12px}
 
 @media (max-width:700px){body{padding:12px}h1{font-size:22px}}
@@ -199,8 +201,8 @@ async function showMonth(id){
         const c=fresh(data,row.n,d);
         return`<td class="${(cls(d).replace("today","")+(c?" chg":"")).trim()}"${c?` title="Bolo: ${esc(c.was)}"`:""}>${v?`<span class="pill ${pill(v)}">${esc(v)}</span>`:""}</td>`;
       }).join("")+"</tr>").join("");
-    rewards(data.vno,"vno");
-    rewards(data.vo,"vo");
+    rewards(data.vno,"vno",data);
+    rewards(data.vo,"vo",data);
     cache=data;
     applyMe();
   }catch(e){
@@ -242,17 +244,52 @@ function applyMe(){
   if(cache)changes(cache);
 }
 
-function rewards(list,id){
+const norm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const baseName=s=>norm(s).replace(/\(.*?\)/g," ").replace(/\s+/g," ").trim();
+// počet ešte naplánovaných smien (od dneška) pre zamestnanca; null = v rozpise sa nenašiel
+function shiftsLeft(data,id,name){
+  if(!data||!data.shifts)return null;
+  const b=baseName(name);
+  let rows=data.shifts.filter(r=>baseName(r.n)===b);
+  if(rows.length>1){
+    const isVo=r=>/\(vo\)/.test(norm(r.n));
+    const pickRows=id==="vo"?rows.filter(isVo):rows.filter(r=>!isVo(r));
+    if(pickRows.length)rows=pickRows;
+  }
+  if(!rows.length)return null;
+  let n=0;
+  data.days.forEach(d=>{
+    if(isPast(data.y,data.m,d))return;
+    rows.forEach(r=>{const v=(r.s[d]||"").toUpperCase();if(v&&!v.startsWith("X")&&!v.startsWith("DOV"))n++;});
+  });
+  return n;
+}
+function gap(c,left){
+  const plan=c[1],act=c[2];
+  if(!plan)return"";
+  const g=p=>Math.max(0,Math.ceil(plan*p-act-1e-9));
+  const g90=g(0.9),g100=g(1);
+  const per=n=>left>0?` (≈ <strong>${Math.ceil(n/left)}</strong> na smenu)`:"";
+  let t;
+  if(!g100)return'<span class="ok">✓ 100 % splnené</span>';
+  if(!g90)t=`<span class="ok">✓ 90 % splnené</span> · do 100 %: ešte <strong>${g100}</strong>${per(g100)}`;
+  else t=`do 90 %: ešte <strong>${g90}</strong>${per(g90)} · do 100 %: ešte <strong>${g100}</strong>${per(g100)}`;
+  if(left===0)t+="<br>V tomto mesiaci už nemá žiadne naplánované smeny.";
+  else if(left>0)t+=`<br><small>Ostáva ${left} naplánovaných smien.</small>`;
+  return t;
+}
+
+function rewards(list,id,data){
   const tb=document.getElementById(id);
   if(!list||!list.length){tb.innerHTML='<tr><td colspan="4" style="padding:14px;color:#6b7280">Žiadne záznamy odmien.</td></tr>';return;}
   tb.innerHTML=list.map((it,i)=>{
-    const sid=`${id}-${i}`, has=it.c&&it.c.length;
+    const sid=`${id}-${i}`, has=it.c&&it.c.length, left=shiftsLeft(data,id,it.n);
     let h=`<tr class="rw" onclick="tog('${sid}')"><td class="emp">${esc(it.n)}${has?' <span style="font-size:10px;color:#9aa1ab">▼</span>':""}</td>
       <td>${it.rank!=null?it.rank+".":"-"}</td>
       <td>${it.pl?(it.pl*100).toFixed(1)+" %":"-"}</td>
       <td><strong>${it.tot!=null?it.tot.toFixed(2)+" €":"-"}</strong></td></tr>`;
     if(has)h+=`<tr id="${sid}" class="dt"><td colspan="4">`+it.c.map(c=>
-      `<span class="chip"><strong>${esc(c[0])}:</strong> plán ${c[1]} · skutočnosť ${c[2]} (${(c[3]*100).toFixed(0)} %) · <strong>${c[4].toFixed(2)} €</strong></span>`).join("")+"</td></tr>";
+      `<span class="chip"><strong>${esc(c[0])}:</strong> plán ${c[1]} · skutočnosť ${c[2]} (${(c[3]*100).toFixed(0)} %) · <strong>${c[4].toFixed(2)} €</strong><br><span class="gap">${gap(c,left)}</span></span>`).join("")+"</td></tr>";
     return h;
   }).join("");
 }
