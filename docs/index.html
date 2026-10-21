@@ -260,7 +260,7 @@ function shiftsLeft(data,id,name){
   let n=0;
   data.days.forEach(d=>{
     if(isPast(data.y,data.m,d))return;
-    rows.forEach(r=>{const v=(r.s[d]||"").toUpperCase();if(v&&!v.startsWith("X")&&!v.startsWith("DOV"))n++;});
+    rows.forEach(r=>{const v=(r.s[d]||"").toUpperCase();if(v&&!v.startsWith("X")&&!v.startsWith("DOV")&&!v.startsWith("POL")&&!(id!=="vo"&&v.startsWith("D-VO")))n++;});
   });
   return n;
 }
