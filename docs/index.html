@@ -269,14 +269,12 @@ function gap(c,left){
   if(!plan)return"";
   const g=p=>Math.max(0,Math.ceil(plan*p-act-1e-9));
   const g90=g(0.9),g100=g(1);
-  const per=n=>left>0?` (≈ <strong>${Math.ceil(n/left)}</strong> na smenu)`:"";
-  let t;
-  if(!g100)return'<span class="ok">✓ 100 % splnené</span>';
-  if(!g90)t=`<span class="ok">✓ 90 % splnené</span> · do 100 %: ešte <strong>${g100}</strong>${per(g100)}`;
-  else t=`do 90 %: ešte <strong>${g90}</strong>${per(g90)} · do 100 %: ešte <strong>${g100}</strong>${per(g100)}`;
-  if(left===0)t+="<br>V tomto mesiaci už nemá žiadne naplánované smeny.";
-  else if(left>0)t+=`<br><small>Ostáva ${left} naplánovaných smien.</small>`;
-  return t;
+  if(!g100)return'<span class="ok">✓ Plán 100 % splnený</span>';
+  if(left===null)return`Do 90 % chýba <strong>${g90}</strong>, do 100 % chýba <strong>${g100}</strong>.`;
+  if(left===0)return`Už nemá žiadne naplánované smeny. Chýba: do 90 % <strong>${g90}</strong>, do 100 % <strong>${g100}</strong>.`;
+  const s90=Math.ceil(g90/left),s100=Math.ceil(g100/left);
+  const l90=g90?`do 90 %: <strong>${s90}</strong>`:'<span class="ok">90 % už splnené</span>';
+  return`Na každú smenu treba predať:<br>${l90} · do 100 %: <strong>${s100}</strong> <small>(ostáva ${left} smien)</small>`;
 }
 
 function rewards(list,id,data){
