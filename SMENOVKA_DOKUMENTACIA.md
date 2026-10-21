@@ -84,12 +84,17 @@ Skript **číta Excel iba na čítanie**, vždy z dočasnej kópie, takže nevad
 
 | Kód | Význam | Farba na webe |
 |---|---|---|
-| `D` | denná 5:00–18:00 | žltá |
-| `D-VO` | denná vonku | zelená |
-| `N` | nočná 18:00–6:00 | modrofialová |
-| `POL` | polnočná | svetlomodrá |
+| `D` | denná 06:00–18:00 | žltá |
+| `D-VO` | denná vonku 06:00–18:00 | zelená |
+| `N` | nočná 18:00–06:00 | modrofialová |
+| `POL` | polnočná 18:00–23:00 | svetlomodrá |
 | `DOV` | dovolenka | oranžová |
+| `PN` | práce neschopnosti | ružová |
 | `X` | zamestnanec nemôže (nepozýva sa do práce) | šedá, zamestnanci ho smú vidieť |
+
+Kódy a časy sú oficiálne v Exceli na liste `NASTAVENIA` (A = kód, B = názov, C = čas, D = hodiny). Kde je kód v zátvorkách, ide o doplnkový kód (`PN` = práce neschopnosť).
+
+V bunkách sa môže objaviť aj kód s časom (napr. `POL 18:00-22:30`, `D 06:00-23:00`). Web zobrazí iba samotný kód (`POL`, `D`) a celý kód nechá v názve bunky (po nabehnutí myšou), aby sa tabuľka na papieri nerozpadla.
 
 Dôležité poradie v kóde (`pill()` v `index.html`): kontrola dlhších kódov (`D-VO`, `DOV`, `POL`) musí byť **pred** `D`, inak by sa dovolenka zobrazila ako denná smena.
 
@@ -134,12 +139,14 @@ Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podi
 ## 7. Čo robí `index.html`
 
 - Načíta `data/index.json`, zobrazí tlačidlá mesiacov (predvolený je aktuálny).
+- **Panel „Dnes a zajtra“** (karta hore): načíta si vlastný JSON aktuálneho mesiaca, takže ukazuje dnešné a zajtrajšie smeny **nezávisle od toho, ktorý mesiac máš práve zvolený**. Stĺpce sú „Dnes“ a „Zajtra“ s dátumom a dňom v týždni; pri každom zamestnancovi je farebná pilulka smeny (`–` = nemá smenu).
 - Tabuľka smien: stĺpec s menom pripnutý vľavo, záhlavie dňa má číslo a deň v týždni, víkendy tónované, **minulé dni sivé**, dnešok má žlté záhlavie.
 - **Moje smeny:** klik na meno zamestnanca zobrazí len jeho riadok (pamätá si to `localStorage` v jeho prehliadači), pruh hore s tlačidlom „Zobraziť všetkých“.
+- **Klik na deň:** kliknutím na číslo dňa sa pod tabuľkou zobrazí „kto ten deň pracuje“ – chipy s menom a smenou; tí, ktorí majú dovolenku / práce neschopnosti / sú nedostupní, sú oddelení nižšie. Klik na ten istý deň panel znova zavrie.
 - **Označenie zmien:** červená bodka v bunke + okno „Nedávne zmeny v rozpise“ (48 h, len dnes a neskôr).
-- **Odmeny:** tabuľky pre vnútornú a vonkajšiu obsluhu (poradie, plnenie, bonus). Po kliknutí na meno sa rozbalí rozpis kategórií.
-- **Koľko ešte predať:** pri každej kategórii (napr. cigarety) ukáže, koľko treba predať **na každú zostávajúcu smenu**, aby zamestnanec dosiahol 90 % a 100 % plánu (chýbajúce množstvo ÷ počet zostávajúcich smien, zaokrúhlené nahor). Smeny sa počítajú od dneška, bez `X` a `DOV`. Ak je plán splnený, ukáže zelené potvrdenie. Jednotka sa nezobrazuje (preberá sa z Excelu).
-- **Tlač A4 naležato** (`@media print`): vytlačí len nadpis, legendu a rozpis, bez posuvníkov, odmien a ovládacích prvkov. Sivé dni ostávajú sivé. Na vytlačenie nástenky nemá byť vybraté žiadne meno (vytlačil by sa len jeden riadok).
+- **Odmeny:** tabuľky pre vnútornú a vonkajšiu obsluhu (poradie, plnenie, bonus). Po kliknutí na meno sa rozbalí rozpis kategórií. Ak je vybrané „moje meno“, vlastný riadok v odmenách je zvýraznený žltou farbou.
+- **Koľko ešte predať:** pri každej kategórii (napr. cigarety) ukáže, koľko treba predať **na každú zostávajúcu smenu**, aby zamestnanec dosiahol 90 % a 100 % plánu (chýbajúce množstvo ÷ počet zostávajúcich smien, zaokrúhlené nahor). Smeny sa počítajú od dneška, bez `X`, `DOV` a `PN`. Ak je plán splnený, ukáže zelené potvrdenie. Jednotka sa nezobrazuje (preberá sa z Excelu).
+- **Tlač A4 naležato** (`@media print`): vytlačí len nadpis, legendu a rozpis, bez posuvníkov, odmien, panelu „Dnes a zajtra“, dňového detailu a ovládacích prvkov. Sivé dni ostávajú sivé. Na vytlačenie nástenky nemá byť vybraté žiadne meno (vytlačil by sa len jeden riadok).
 - Meno z rozpisu sa páruje s menom v odmenách podľa mena bez diakritiky a bez zátvorky `(VO)`.
 
 ---
@@ -165,6 +172,8 @@ Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podi
 | `spusti.bat` skončí hneď s „Press any key“ a nič nevypíše | `sync.py` bol useknutý (chýbal koniec s `main()`). Prepísať celým súborom. |
 | Zvláštne znaky v okne príkazového riadka | Len zobrazenie v konzole, v súbore je text v poriadku. |
 | Dovolenka sa zobrazovala ako denná | Poradie kontrol kódov v `pill()` (opravené). |
+| `PN` (práce neschopnosti) sa zobrazoval bez farby a bez legendy | Web poznal len D, D-VO, N, POL, DOV, X. Doplnený kód `PN` (ružová) aj do legendy a do počítania zostávajúcich smien. |
+| Kódy s časom (`POL 18:00-22:30`) roztláčali tabuľku | Web zobrazuje iba samotný kód, celý kód ostáva v názve bunky. |
 | Bodky zmien sa neukazujú | Bežala stará verzia `sync.py` bez `merge_changes`. Prepísať a reštartovať skript. |
 
 Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` súčasne).
@@ -183,8 +192,9 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 
 ## 11. Známe obmedzenia a čo overiť
 
-- Výpočet „koľko ešte predať“ predpokladá, že `c[1]` je plán a `c[2]` skutočnosť. Overiť na jednom príklade (plán 100, skutočnosť 60 → do 90 %: ešte 30, do 100 %: ešte 40). Jednotky preberá z Excelu.
+- Výpočet „koľko ešte predať“ predpokladá, že `c[1]` je plán a `c[2]` skutočnosť – **overené na Exceli** (plán 100, skutočnosť 60 → do 90 %: ešte 30, do 100 %: ešte 40). Jednotky preberá z Excelu.
 - Dnešný deň sa pri výpočte smien počíta ako ešte neodpracovaný.
+- Do počtu zostávajúcich smien sa **nezapočítavajú** krátke polnočné smeny `POL` a (pri vnútornej obsluhe) denné smeny vonku `D-VO` – je to pravidlo majiteľa, zmeniť sa dá v `shiftsLeft()`.
 - Ak sa meno v `SUMAR` píše inak ako v `MASTER`, počet smien sa nezobrazí.
 - Ak niekto v Exceli opraví preklep, označí sa to ako zmena smeny.
 - Nástenku tlačiť bez vybraného mena.
@@ -194,11 +204,11 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 
 ## 12. Nápady na ďalší vývoj
 
+**Už hotovo (21. 10. 2026):** panel „Dnes a zajtra“, klik na deň (kto pracuje), kód `PN` v legende, skrátenie kódov s časom, zvýraznenie vlastného riadka v odmenách.
+
 - QR kód na vytlačenom rozpise s odkazom na web.
-- Klik na deň: kto ten deň pracuje (výmeny smien).
-- Panel „Dnes a zajtra“.
 - Oznam od vedúceho z bunky v Exceli (žltý pruh na webe).
-- Rebríček s medailami, pásik plnenia, zvýraznenie vlastného riadka v odmenách, rozdiel k prvému miestu, šípky pohybu v poradí, víťaz mesiaca.
+- Rebríček s medailami, pásik plnenia, rozdiel k prvému miestu, šípky pohybu v poradí, víťaz mesiaca.
 - Tmavý režim, ikona na ploche mobilu (PWA).
 - Prípadne skryť sumy v € a nechať v súťaži len poradie a percentá.
 
@@ -207,6 +217,8 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 ## 13. Pokyn pre inú AI (vlož na začiatok rozhovoru)
 
 > Pokračujeme vo vývoji webu so smenovkou a odmenami pre čerpaciu stanicu. Pozri si priloženú dokumentáciu a zdrojové kódy na konci. Systém: Excel → `sync.py` (Python, openpyxl, beží na Windows PC) → JSON do `docs/data` → git push → GitHub Pages → `docs/index.html` (statická stránka, JavaScript bez knižníc). Používateľ nie je programátor, píše po slovensky, potrebuje jednoduché kroky po jednom. Pri zmenách vždy dodaj **kompletné** súbory (nie len úryvky), aby sa nepoškodili pri kopírovaní. Pred úpravou over, či sedí štruktúra Excelu (kapitola 4). Zachovaj A4 tlač, sivé minulé dni a verejné odmeny.
+>
+> Nové funkcie (21. 10. 2026) sú iba v `docs/index.html` – `sync.py` ani formát JSON sa nemenili. Ak pridávaš novú funkciu, najprv ju odtestuj lokálne: v priečinku `docs` spusti `python -m http.server 8765` a otvor `http://127.0.0.1:8765/` (z disku cez `file://` prehliadač blokuje načítanie `data/*.json`).
 
 ---
 
@@ -508,6 +520,7 @@ button:focus-visible{outline:3px solid var(--red);outline-offset:2px}
 .p-n{background:#c7d2fe;color:#312e81}
 .p-pol{background:#b6e3f7;color:#0c4a6e}
 .p-dov{background:#fdc9a0;color:#7c2d12}
+.p-pn{background:#fecdd3;color:#881337}
 .p-x{background:#f1f2f4;color:#9aa1ab}
 
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:22px;overflow:hidden}
@@ -525,6 +538,9 @@ th.emp{background:#fafafa}
 th.we{background:#f3f1ea}
 th.today{background:var(--brand)}
 th.today .dn,th.today .dw{color:var(--brand-ink)}
+th.day{cursor:pointer}
+th.day:hover{background:#eef0f3}
+th.sel{outline:3px solid var(--brand);outline-offset:-3px}
 #body .emp{cursor:pointer}
 #body tr:hover .emp{text-decoration:underline}
 .mebar{display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 18px;background:#fff8d6;border-bottom:1px solid var(--line);font-size:13px}
@@ -542,10 +558,29 @@ th.past .dn,th.past .dw{color:var(--past-ink)!important}
 tbody tr:last-child td{border-bottom:none}
 .foot{padding:10px 18px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
 
+/* --- panel Dnes a zajtra --- */
+.todaybox td{padding:7px 6px}
+.todaybox th.emp{width:170px}
+.todaybox .none{color:var(--muted)}
+.todaybox .wd{font-size:10px;font-weight:400;color:var(--muted)}
+.todaybox td.emp{position:static;min-width:170px;max-width:170px}
+
+/* --- klik na deň: kto pracuje --- */
+.daybox{display:none;border-top:1px solid var(--line);background:#fbfbf9;padding:12px 18px;font-size:13px}
+.daybox .dh{font-weight:700;margin-bottom:8px;font-size:14px}
+.daybox .dl{display:flex;flex-wrap:wrap;gap:6px 10px}
+.daybox .one{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 9px}
+.daybox .one b{font-weight:600}
+.daybox .one.off{background:#f7f7f5;color:#7a8089}
+.daybox .none{color:var(--muted)}
+
 .rw{cursor:pointer}.rw:hover td{background:#fafafa}
 .rw td.emp{background:inherit}
+.rw.mine td{background:#fff8d6}
+.rw.mine td.emp{background:#fff8d6;font-weight:700}
 .dt{display:none;background:#fafafa}
 .dt td{text-align:left;padding:10px 14px}
+.dt.mine{background:#fff8d6}
 .gap{display:block;margin-top:4px;font-size:12px;color:#92400e}
 .ok{color:#15803d;font-weight:700}
 .chip{display:inline-block;margin:3px 6px 3px 0;padding:5px 9px;border-radius:8px;background:#fff;border:1px solid var(--line);font-size:12px}
@@ -555,7 +590,7 @@ tbody tr:last-child td{border-bottom:none}
 @media print{
   @page{size:A4 landscape;margin:6mm}
   html,body{background:#fff!important;padding:0!important;color:#000}
-  .controls,.rewards,.foot,.chgbox,.mebar{display:none!important}
+  .controls,.rewards,.foot,.chgbox,.mebar,.todaybox,.daybox{display:none!important}
   .wrap{max-width:none}
   header{margin-bottom:6px;padding-left:8px;border-left-width:4px}
   h1{font-size:16pt}
@@ -567,6 +602,7 @@ tbody tr:last-child td{border-bottom:none}
   .tw{overflow:visible!important}
   table{table-layout:fixed;font-size:7pt;border-collapse:collapse}
   th,td{border:1px solid #cfd3d8;padding:2.2mm 0;min-width:0}
+  th.sel{outline:none!important}
   th{padding:1mm 0}
   th .dn{font-size:7.5pt}th .dw{font-size:6pt}
   .emp{position:static;width:34mm;min-width:34mm;max-width:34mm;font-size:7.5pt;padding-left:1.5mm;border-right:1.5px solid #9ca3af}
@@ -587,16 +623,27 @@ tbody tr:last-child td{border-bottom:none}
   </header>
 
   <div class="legend">
-    <span><i class="pill p-d">D</i> denná 5:00–18:00</span>
-    <span><i class="pill p-dvo">D-VO</i> denná vonku</span>
-    <span><i class="pill p-n">N</i> nočná 18:00–6:00</span>
-    <span><i class="pill p-pol">POL</i> polnočná</span>
+    <span><i class="pill p-d">D</i> denná 06:00–18:00</span>
+    <span><i class="pill p-dvo">D-VO</i> denná vonku 06:00–18:00</span>
+    <span><i class="pill p-n">N</i> nočná 18:00–06:00</span>
+    <span><i class="pill p-pol">POL</i> polnočná 18:00–23:00</span>
     <span><i class="pill p-dov">DOV</i> dovolenka</span>
+    <span><i class="pill p-pn">PN</i> práce neschopnosti</span>
     <span><i class="pill p-x">X</i> nedostupný</span>
   </div>
 
+  <div class="card todaybox" id="todaybox">
+    <div class="card-h"><span>Dnes a zajtra</span><small id="todaynote"></small></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th class="emp">Pracovník</th><th id="thToday">Dnes</th><th id="thTomm">Zajtra</th></tr></thead>
+        <tbody id="todaybody"><tr><td colspan="3" style="padding:14px;color:#6b7280">Načítavam…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="card">
-    <div class="card-h"><span id="title">Rozpis zmien</span><small>Klikni na svoje meno a uvidíš len svoje smeny</small></div>
+    <div class="card-h"><span id="title">Rozpis zmien</span><small>Klikni na svoje meno (len tvoje smeny) alebo na deň (kto pracuje)</small></div>
     <div class="mebar" id="mebar"></div>
     <div class="tw">
       <table>
@@ -604,6 +651,7 @@ tbody tr:last-child td{border-bottom:none}
         <tbody id="body"><tr><td colspan="32" style="padding:24px;color:#6b7280">Načítavam rozpis…</td></tr></tbody>
       </table>
     </div>
+    <div class="daybox" id="daybox"></div>
     <div class="foot">Sivé dni už uplynuli. Žlté záhlavie je dnešný deň.</div>
   </div>
 
@@ -625,20 +673,32 @@ tbody tr:last-child td{border-bottom:none}
 
 <script>
 const DOW=["ne","po","ut","st","št","pi","so"];
-let me="",cache=null;
+const DOWFULL=["nedeľa","pondelok","utorok","streda","štvrtok","piatok","sobota"];
+let me="",cache=null,todayData=null,selDay=null;
 try{me=localStorage.getItem("me")||""}catch(e){}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 function pill(code){
-  const c=code.toUpperCase();
-  // dlhšie kódy musia byť skôr než kratšie (DOV a D-VO pred D)
+  const c=String(code||"").toUpperCase();
+  // dlhšie kódy musia byť skôr než kratšie (D-VO a DOV pred D)
   if(c.startsWith("D-VO"))return"p-dvo";
   if(c.startsWith("DOV"))return"p-dov";
+  if(c.startsWith("PN"))return"p-pn";
   if(c.startsWith("POL"))return"p-pol";
   if(c.startsWith("D"))return"p-d";
   if(c.startsWith("N"))return"p-n";
   if(c.startsWith("X"))return"p-x";
   return"";
+}
+// skráti kód na samotný názov ("POL 18:00-22:30" -> "POL"), plný kód ostáva v názve bunky
+function shortCode(code){
+  const s=String(code||"").trim();
+  const m=s.match(/^([A-Za-z]+(?:-[A-Za-z]+)?)/);
+  return m?m[1].toUpperCase():s.toUpperCase();
+}
+function cell(code){
+  if(!code)return"";
+  return`<span class="pill ${pill(code)}" title="${esc(code)}">${esc(shortCode(code))}</span>`;
 }
 function isPast(y,m,d){
   const n=new Date();
@@ -651,6 +711,8 @@ function isToday(y,m,d){
 
 async function showMonth(id){
   const body=document.getElementById("body");
+  selDay=null;
+  document.getElementById("daybox").style.display="none";
   try{
     const r=await fetch(`./data/${id}.json?v=${Date.now()}`);
     if(!r.ok)throw 0;
@@ -665,13 +727,13 @@ async function showMonth(id){
       return[(w===0||w===6)?"we":"",isPast(data.y,data.m,d)?"past":"",isToday(data.y,data.m,d)?"today":""].join(" ").trim();
     };
     document.getElementById("head").innerHTML='<th class="emp">Zamestnanec</th>'+
-      data.days.map(d=>`<th class="${cls(d)}"><span class="dn">${d}</span><span class="dw">${DOW[new Date(data.y,data.m,d).getDay()]}</span></th>`).join("");
+      data.days.map(d=>`<th class="day ${cls(d)}" onclick="showDay(${d})" title="Klikni: kto pracuje ${d}. ${data.m+1}."><span class="dn">${d}</span><span class="dw">${DOW[new Date(data.y,data.m,d).getDay()]}</span></th>`).join("");
     body.innerHTML=data.shifts.map(row=>
       `<tr data-n="${esc(row.n)}"><td class="emp" onclick="pick(this.parentNode.dataset.n)">${esc(row.n)}</td>`+
       data.days.map(d=>{
         const v=row.s[d]||"";
         const c=fresh(data,row.n,d);
-        return`<td class="${(cls(d).replace("today","")+(c?" chg":"")).trim()}"${c?` title="Bolo: ${esc(c.was)}"`:""}>${v?`<span class="pill ${pill(v)}">${esc(v)}</span>`:""}</td>`;
+        return`<td class="${(cls(d).replace("today","")+(c?" chg":"")).trim()}"${c?` title="Bolo: ${esc(c.was)}"`:""}>${cell(v)}</td>`;
       }).join("")+"</tr>").join("");
     rewards(data.vno,"vno",data);
     rewards(data.vo,"vo",data);
@@ -680,6 +742,73 @@ async function showMonth(id){
   }catch(e){
     body.innerHTML='<tr><td colspan="32" style="padding:24px;color:#dc2626">Dáta pre vybraný mesiac sa nepodarilo načítať.</td></tr>';
   }
+}
+
+/* ---------- klik na deň: kto pracuje ---------- */
+function showDay(d){
+  const data=cache;
+  if(!data)return;
+  selDay=(selDay===d)?null:d;
+  document.querySelectorAll("th.day").forEach(th=>th.classList.remove("sel"));
+  const box=document.getElementById("daybox");
+  if(selDay===null){box.style.display="none";box.innerHTML="";return;}
+  const th=[...document.querySelectorAll("th.day")].find(x=>x.querySelector(".dn").textContent==String(d));
+  if(th)th.classList.add("sel");
+  const w=new Date(data.y,data.m,d).getDay();
+  const rows=data.shifts.map(r=>({n:r.n,v:r.s[d]||""})).filter(x=>x.v);
+  const work=rows.filter(x=>!isOff(x.v));
+  const off=rows.filter(x=>isOff(x.v));
+  let h=`<div class="dh">${d}. ${data.m+1}. ${data.y} – ${DOWFULL[w]}</div>`;
+  h+='<div class="dl">';
+  h+=work.length
+      ? work.map(x=>`<span class="one"><b>${esc(x.n)}</b>${cell(x.v)}</span>`).join("")
+      : '<span class="none">V tento deň nikto nepracuje.</span>';
+  h+="</div>";
+  if(off.length){
+    h+='<div class="dl" style="margin-top:8px">'+off.map(x=>
+      `<span class="one off"><b>${esc(x.n)}</b>${cell(x.v)}</span>`).join("")+"</div>";
+  }
+  box.innerHTML=h;
+  box.style.display="block";
+}
+function isOff(code){
+  const c=String(code||"").toUpperCase();
+  return c.startsWith("X")||c.startsWith("DOV")||c.startsWith("PN");
+}
+
+/* ---------- panel Dnes a zajtra ---------- */
+async function loadToday(){
+  const n=new Date();
+  const cur=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`;
+  try{
+    const r=await fetch(`./data/${cur}.json?v=${Date.now()}`);
+    if(!r.ok)throw 0;
+    todayData=await r.json();
+  }catch(e){todayData=null;}
+  renderToday();
+}
+function renderToday(){
+  const tb=document.getElementById("todaybody");
+  const note=document.getElementById("todaynote");
+  if(!todayData){tb.innerHTML='<tr><td colspan="3" style="padding:14px;color:#6b7280">Dnešná smenovka sa nepodarilo načítať.</td></tr>';note.textContent="";return;}
+  const data=todayData, y=data.y, m=data.m;
+  const n=new Date();
+  const d1=n.getDate(), d2=d1+1;
+  const label=(d)=>`${DOWFULL[new Date(y,m,d).getDay()]} ${d}. ${m+1}.`;
+  document.getElementById("thToday").innerHTML=`Dnes<br><span class="wd">${label(d1)}</span>`;
+  document.getElementById("thTomm").innerHTML=`Zajtra<br><span class="wd">${label(d2)}</span>`;
+  note.textContent=data.label;
+  const has=d=>data.days.includes(d);
+  const names=data.shifts.map(r=>r.n);
+  let rows="";
+  names.forEach(nm=>{
+    const r=data.shifts.find(x=>x.n===nm);
+    const v1=has(d1)?(r.s[d1]||""):"";
+    const v2=has(d2)?(r.s[d2]||""):"";
+    if(!v1&&!v2)return;
+    rows+=`<tr><td class="emp">${esc(nm)}</td><td>${cell(v1)||'<span class="none">–</span>'}</td><td>${cell(v2)||'<span class="none">–</span>'}</td></tr>`;
+  });
+  tb.innerHTML=rows||'<tr><td colspan="3" style="padding:14px;color:#6b7280">V dnešnom mesiaci nie sú zaznamenané žiadne smeny.</td></tr>';
 }
 
 const HOURS48=48*3600*1000;
@@ -693,7 +822,7 @@ function changes(data){
   data.shifts.forEach(row=>data.days.forEach(d=>{
     if(me&&row.n!==me)return;
     const c=fresh(data,row.n,d);
-    if(c)items.push(`<li><span class="dot"></span><strong>${esc(row.n)}</strong>, ${d}. ${data.m+1}.: bolo <span class="pill ${pill(c.was)}">${esc(c.was)}</span> teraz <span class="pill ${pill(row.s[d]||"-")}">${esc(row.s[d]||"-")}</span></li>`);
+    if(c)items.push(`<li><span class="dot"></span><strong>${esc(row.n)}</strong>, ${d}. ${data.m+1}.: bolo ${cell(c.was)} teraz ${cell(row.s[d]||"-")}</li>`);
   }));
   document.getElementById("chglist").innerHTML=items.join("");
   document.getElementById("chgbox").style.display=items.length?"block":"none";
@@ -732,7 +861,14 @@ function shiftsLeft(data,id,name){
   let n=0;
   data.days.forEach(d=>{
     if(isPast(data.y,data.m,d))return;
-    rows.forEach(r=>{const v=(r.s[d]||"").toUpperCase();if(v&&!v.startsWith("X")&&!v.startsWith("DOV"))n++;});
+    rows.forEach(r=>{
+      const v=(r.s[d]||"").toUpperCase();
+      if(!v)return;
+      if(v.startsWith("X")||v.startsWith("DOV")||v.startsWith("PN"))return;   // nepracuje
+      if(v.startsWith("POL"))return;                                            // krátka polnočná smena
+      if(id!=="vo"&&v.startsWith("D-VO"))return;                                // denná vonku je pre vonkajšiu obsluhu
+      n++;
+    });
   });
   return n;
 }
@@ -754,11 +890,12 @@ function rewards(list,id,data){
   if(!list||!list.length){tb.innerHTML='<tr><td colspan="4" style="padding:14px;color:#6b7280">Žiadne záznamy odmien.</td></tr>';return;}
   tb.innerHTML=list.map((it,i)=>{
     const sid=`${id}-${i}`, has=it.c&&it.c.length, left=shiftsLeft(data,id,it.n);
-    let h=`<tr class="rw" onclick="tog('${sid}')"><td class="emp">${esc(it.n)}${has?' <span style="font-size:10px;color:#9aa1ab">▼</span>':""}</td>
+    const mine=!!(me&&baseName(it.n)===baseName(me));
+    let h=`<tr class="rw${mine?" mine":""}" onclick="tog('${sid}')"><td class="emp">${esc(it.n)}${has?' <span style="font-size:10px;color:#9aa1ab">▼</span>':""}</td>
       <td>${it.rank!=null?it.rank+".":"-"}</td>
       <td>${it.pl?(it.pl*100).toFixed(1)+" %":"-"}</td>
       <td><strong>${it.tot!=null?it.tot.toFixed(2)+" €":"-"}</strong></td></tr>`;
-    if(has)h+=`<tr id="${sid}" class="dt"><td colspan="4">`+it.c.map(c=>
+    if(has)h+=`<tr id="${sid}" class="dt${mine?" mine":""}"><td colspan="4">`+it.c.map(c=>
       `<span class="chip"><strong>${esc(c[0])}:</strong> plán ${c[1]} · skutočnosť ${c[2]} (${(c[3]*100).toFixed(0)} %) · <strong>${c[4].toFixed(2)} €</strong><br><span class="gap">${gap(c,left)}</span></span>`).join("")+"</td></tr>";
     return h;
   }).join("");
@@ -767,6 +904,7 @@ function tog(id){const e=document.getElementById(id);if(e)e.style.display=e.styl
 
 async function init(){
   const nav=document.getElementById("month-list");
+  loadToday();
   try{
     const r=await fetch(`./data/index.json?v=${Date.now()}`);
     if(!r.ok)throw 0;
