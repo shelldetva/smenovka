@@ -100,6 +100,53 @@ def read_rewards(ws, key):
     return out
 
 
+def base_cat(name):
+    """Názov kategórie bez zátvorky na konci ('Cigarety (noc)' -> 'Cigarety')."""
+    return re.sub(r"\s*\(.*?\)\s*$", "", str(name)).strip()
+
+
+def read_plans(ws):
+    """Denný plán tovaru podľa typu smeny (D-VO / D / N) z listu PLANY.
+
+    List PLANY má sekcie:
+        --- 1. VONKAJŠIA SMENA (D-VO) ---   stĺpec A = tovar, B = merná jednotka, C = denný plán
+        --- 2. VNÚTORNÁ DENNÁ SMENA (D) ---
+        --- 3. VNÚTORNÁ NOČNÁ SMENA (N) ---
+    Vrací {"D": {"CIGARETY": {"p": 150, "u": "ks"}}, "N": {...}, "D-VO": {...}}
+    """
+    plans = {}
+    kind = None
+    for r in range(1, ws.max_row + 1):
+        a = ws.cell(r, 1).value
+        if a in (None, ""):
+            continue
+        s = str(a).strip()
+        if s.startswith("---"):                      # nadpis sekcie
+            up = plain(s)
+            if "D-VO" in up:
+                kind = "D-VO"
+            elif "NOC" in up:
+                kind = "N"
+            elif "DENN" in up:
+                kind = "D"
+            else:
+                kind = None
+            continue
+        if not kind:
+            continue
+        val = ws.cell(r, 3).value
+        if not isinstance(val, (int, float)):
+            continue
+        cat = base_cat(s)
+        if not cat:
+            continue
+        plans.setdefault(kind, {})[plain(cat)] = {
+            "p": round(float(val), 4),
+            "u": str(ws.cell(r, 2).value or "").strip(),
+        }
+    return plans
+
+
 def read_month(path, year, month):
     with tempfile.TemporaryDirectory() as tmp:    # kópia, aby nevadil otvorený Excel
         copy = Path(tmp) / "x.xlsx"
@@ -107,10 +154,15 @@ def read_month(path, year, month):
         wb = load_workbook(copy, data_only=True)
     days, shifts = read_schedule(find_sheet(wb, "MASTER"), year, month)
     su = find_sheet(wb, "SUMAR")
+    try:
+        plans = read_plans(find_sheet(wb, "PLANY"))
+    except Exception:
+        plans = {}
     return {
         "id": f"{year}-{month:02d}", "label": f"{MONTHS[month - 1]} {year}",
         "y": year, "m": month - 1, "days": days, "shifts": shifts,
         "vno": read_rewards(su, "VNUTORNA"), "vo": read_rewards(su, "VONKAJSIA"),
+        "plans": plans,
     }
 
 
