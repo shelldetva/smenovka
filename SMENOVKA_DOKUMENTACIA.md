@@ -82,14 +82,17 @@ Skript **číta Excel iba na čítanie**, vždy z dočasnej kópie, takže nevad
 
 **List `PLANY`** (nájde sa podľa slova „PLANY“) – **denný plán tovaru podľa typu smeny**:
 - bunky so začiatkom `---` sú nadpisy sekcií (napr. `--- 2. VNÚTORNÁ DENNÁ SMENA (D) ---`) a určujú typ smeny: `D-VO` (vonkajšia), `D` (vnútorná denná), `N` (vnútorná nočná),
-- stĺpec A = tovar, stĺpec B = merná jednotka (`ks`, `litrov`), stĺpec C = denný plán,
-- nočné tovary majú v názve príponu `(noc)` – pre porovnanie s kategóriami v `SUMAR` sa prípona zahodí (`Cigarety (noc)` → `Cigarety`).
+- stĺpec A = tovar, stĺpec B = merná jednotka (`ks`, `litrov`), stĺpec C = denný plán, stĺpec D = **váha kategórie v %** (E = kontrolný súčet, nemusí byť vyplnený),
+- nočné tovary majú v názve príponu `(noc)` – pre porovnanie s kategóriami v `SUMAR` sa prípona zahodí (`Cigarety (noc)` → `Cigarety`),
+- pri nočných tovaroch **nie je váha vyplnená** (stĺpec D je prázdny) – platí rovnaká váha ako pri tom istom tovare v dennej sekcii; skript si ju pri čítaní doplní.
 
-| Typ smeny | Denný plán (ríkober 2026) |
-|---|---|
-| `D-VO` vonkajšia | V-POWER 1550 litrov, SCREENWASH 6 ks, OLEJ 1 ks, AD BLUE 150 litrov |
-| `D` vnútorná denná | Cigarety 150 ks, Tabak 32, Doplnky 30, Hotdog 25, Bagety Detvan 22, Káva 23 |
-| `N` vnútorná nočná | Cigarety 90 ks, Tabak 36, Doplnky 30, Hotdog 20, Bagety Detvan 22, Káva 6 |
+| Typ smeny | Denný plán (október 2026) | Váha kategórií |
+|---|---|---|
+| `D-VO` vonkajšia | V-POWER 1550 litrov, SCREENWASH 6 ks, OLEJ 1 ks, AD BLUE 150 litrov | 50 / 25 / 10 / 15 % |
+| `D` vnútorná denná | Cigarety 150 ks, Tabak 32, Doplnky 30, Hotdog 25, Bagety Detvan 22, Káva 23 | 10 / 15 / 15 / 25 / 25 / 10 % |
+| `N` vnútorná nočná | Cigarety 90 ks, Tabak 36, Doplnky 30, Hotdog 20, Bagety Detvan 22, Káva 6 | rovnaká ako pri `D` |
+
+Váha je tá istá, akú má zamestnanecký list v riadku „Váha kritéria“ a z ktorej je odvodený „Bonus na zmenu“ – preto kategória s väčšou váhou (Hotdog a Bagety 25 %) ovplyvní bonus viac než cigarety (10 %). Web ju používa na **poradie a označenie dôležitosti** kategórií, sumy v € počíta stále Excel.
 
 ### Kódy smien
 
@@ -126,16 +129,16 @@ id, label, y (rok), m (mesiac 0–11), days [1..31],
 shifts: [ { n: "Meno", s: { "1": "D", "2": "N", ... } } ],
 vno / vo: [ { n, rank, tot (bonus €), pl (plnenie podiel),
               c: [ [kategória, plán, skutočnosť, podiel, €, ďalšie], ... ] } ],
-plans: { "D-VO": { "V-POWER": { p: 1550, u: "litrov" } },
-         "D":    { "CIGARETY": { p: 150, u: "ks" } },
-         "N":    { "CIGARETY": { p: 90,  u: "ks" } } },
+plans: { "D-VO": { "V-POWER": { p: 1550, u: "litrov", w: 50 } },
+         "D":    { "CIGARETY": { p: 150, u: "ks", w: 10 } },
+         "N":    { "CIGARETY": { p: 90,  u: "ks", w: 10 } } },
 updated: čas poslednej zmeny,
 changes: { "Meno": { "17": { was: "N", at: "ISO čas" } } }
 ```
 
 Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podiel, `c[4]` = bonus v €.
 
-`plans` je **denný plán tovaru podľa typu smeny** z listu `PLANY` v Exceli (kľúč = názov kategórie bez diakritiky, veľkými písmenami; `p` = denný plán, `u` = jednotka). Bez neho web vie iba „koľko chýba celkovo“, nie „koľko na konkrétny typ smeny“.
+`plans` je **denný plán tovaru podľa typu smeny** z listu `PLANY` v Exceli (kľúč = názov kategórie bez diakritiky, veľkými písmenami; `p` = denný plán, `u` = jednotka, `w` = váha kategórie v %). Bez neho web vie iba „koľko chýba celkovo“, nie „koľko na konkrétny typ smeny“.
 
 ---
 
@@ -145,7 +148,7 @@ Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podi
 - Každých 20 s skontroluje čas zmeny Excelov. Počká 5 s po poslednom uložení (kým Excel dopíše súbor).
 - Spracuje len mesiace: **minulý, aktuálny a nasledujúce 2** (`valid_range`).
 - `read_schedule` / `read_rewards` / `read_plans` / `read_month` prevedú Excel na JSON.
-- `read_plans()` číta list `PLANY` a uloží **denný plán tovaru podľa typu smeny** (`D`, `N`, `D-VO`) do JSON pod kľúčom `plans` (kategórie bez diakritiky, prípona `(noc)` zahodená).
+- `read_plans()` číta list `PLANY` a uloží **denný plán tovaru podľa typu smeny** (`D`, `N`, `D-VO`) do JSON pod kľúčom `plans` (kategórie bez diakritiky, prípona `(noc)` zahodená, `w` = váha kategórie zo stĺpca D).
 - Ak sa obsah zmenil (porovnáva sa odtlačok bez `updated` a `changes`), doplní `updated` a `changes` a súbor prepíše.
 - `merge_changes` zaznamenáva zmenené smeny **dnes a v budúcnosti** s pôvodnou hodnotou; záznam žije 48 hodín. Nový mesiac a nový zamestnanec sa neoznačujú.
 - `push()` urobí `git add -A`, `git commit`, `git push`. Ak nie je čo commitnúť, nevadí.
@@ -156,13 +159,14 @@ Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podi
 ## 7. Čo robí `index.html`
 
 - Načíta `data/index.json`, zobrazí tlačidlá mesiacov (predvolený je aktuálny).
-- **Panel „Dnes a zajtra“** (karta hore): načíta si vlastný JSON aktuálneho mesiaca, takže ukazuje dnešné a zajtrajšie smeny **nezávisle od toho, ktorý mesiac máš práve zvolený**. Stĺpce sú „Dnes“ a „Zajtra“ s dátumom a dňom v týždni; pri každom zamestnancovi je farebná pilulka smeny (`–` = nemá smenu).
+- **Panel „Dnes a zajtra“** (karta hore): načíta si vlastný JSON aktuálneho mesiaca, takže ukazuje dnešné a zajtrajšie smeny **nezávisle od toho, ktorý mesiac máš práve zvolený**. Stĺpce sú „Dnes“ a „Zajtra“ s dátumom a dňom v týždni (pri sviatku je tam aj slovo „sviatok“); pri každom zamestnancovi je farebná pilulka smeny (`–` = nemá smenu). Tretí stĺpec **„Cieľ na dnes“** ukáže pri tom, kto dnes pracuje, koľko ešte treba predať na dnešnú smenu (rovnaká matematika ako „koľko ešte predať“, pozri nižšie); kategórie sú zoradené podľa váhy. Kliknutie na riadok v tomto paneli vyberie dané meno ako „moje“.
 - Tabuľka smien: stĺpec s menom pripnutý vľavo, záhlavie dňa má číslo a deň v týždni, víkendy tónované, **minulé dni sivé**, dnešok má žlté záhlavie.
 - **Moje smeny:** klik na meno zamestnanca zobrazí len jeho riadok (pamätá si to `localStorage` v jeho prehliadači), pruh hore s tlačidlom „Zobraziť všetkých“.
 - **Klik na deň:** kliknutím na číslo dňa sa pod tabuľkou zobrazí „kto ten deň pracuje“ – chipy s menom a smenou; tí, ktorí majú dovolenku / práce neschopnosti / sú nedostupní, sú oddelení nižšie. Klik na ten istý deň panel znova zavrie.
 - **Označenie zmien:** červená bodka v bunke + okno „Nedávne zmeny v rozpise“ (48 h, len dnes a neskôr).
-- **Odmeny:** tabuľky pre vnútornú a vonkajšiu obsluhu (poradie, plnenie, bonus). Po kliknutí na meno sa rozbalí rozpis kategórií. Ak je vybrané „moje meno“, vlastný riadok v odmenách je zvýraznený žltou farbou.
-- **Koľko ešte predať:** pri každej kategórii (napr. cigarety) ukáže, koľko treba predať **na každú zostávajúcu smenu – zvlášť pre každý typ smeny** (denná / nočná / denná vonku), aby zamestnanec dosiahol 90 % a 100 % mesačného plánu. Výpočet: *plán zostávajúcich smien = denný plán z Excelu (`PLANY`) × počet smien daného typu*; deficit (mesačný plán − skutočnosť) sa rozdelí medzi typy úmerne ich plánu a pripočíta sa k plánu týchto smien (zaokrúhlene nahor). Smeny sa počítajú od dneška, bez `X`, `DOV`, `PN` a bez krátkych `POL` (tie nemajú vlastný plán); pri vnútornej obsluhe sa nepočítajú denné smeny vonku `D-VO`, pri vonkajšej naopak. Ak je plán splnený, ukáže zelené potvrdenie a denný plán na zostávajúce smeny. Jednotka (`ks`, `litrov`) sa berie z Excelu a zobrazuje sa.
+- **Odmeny:** tabuľky pre vnútornú a vonkajšiu obsluhu (poradie, plnenie, bonus). Po kliknutí na meno sa rozbalí rozpis kategórií. Ak je vybrané „moje meno“, vlastný riadok v odmenách je zvýraznený žltou farbou. Kategórie sú v rozpise **zoradené podľa váhy** (najviac vľavo), každá má štítok „váha X %“ a kategórie s najväčšou váhou sú orámované žltým okrajom; hore je veta „Najviac do bonusu: …“. V záhlaví karty je počet dní do konca mesiaca.
+- **Koľko ešte predať:** pri každej kategórii (napr. cigarety) ukáže, koľko treba predať **na každú zostávajúcu smenu – zvlášť pre každý typ smeny** (denná / nočná / denná vonku), aby zamestnanec dosiahol 90 % a 100 % mesačného plánu. Výpočet: *plán zostávajúcich smien = denný plán z Excelu (`PLANY`) × počet smien daného typu*; deficit (mesačný plán − skutočnosť) sa rozdelí medzi typy úmerne ich plánu a pripočíta sa k plánu týchto smien (zaokrúhlene nahor). Smeny sa počítajú od dneška, bez `X`, `DOV`, `PN` a bez krátkych `POL` (tie nemajú vlastný plán); pri vnútornej obsluhe sa nepočítajú denné smeny vonku `D-VO`, pri vonkajšej naopak. Ak je plán splnený, ukáže zelené potvrdenie a denný plán na zostávajúce smeny. Jednotka (`ks`, `litrov`) sa berie z Excelu a zobrazuje sa. Stĺpec „Cieľ na dnes“ v paneli hore používa ten istý výpočet, len pre dnešnú smenu a typ smeny.
+- **Sviatky:** dni, ktoré sú v SR sviatok, majú v záhlaví **červené číslo a hviezdičku**; po nabehnutí myšou sa ukáže názov (napr. „1. 11. – Sviatok všetkých svätých“) a klik na deň ho ukáže aj v detaile dňa. Zoznam je priamo v `index.html` (`holMap`), Veľký piatok a Veľkonočný pondelok sa počítajú z Veľkej noci, takže sedí každý rok. Do tlače sa hviezdička dostane tiež.
 - **Tlač A4 naležato** (`@media print`): vytlačí len nadpis, legendu a rozpis, bez posuvníkov, odmien, panelu „Dnes a zajtra“, dňového detailu a ovládacích prvkov. Sivé dni ostávajú sivé. Na vytlačenie nástenky nemá byť vybraté žiadne meno (vytlačil by sa len jeden riadok).
 - Meno z rozpisu sa páruje s menom v odmenách podľa mena bez diakritiky a bez zátvorky `(VO)`.
 
@@ -217,6 +221,10 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 - Ak sa meno v `SUMAR` píše inak ako v `MASTER`, počet smien sa nezobrazí (web vtedy ukáže len celkový rozdiel).
 - Pri zamestnancovi, ktorý robí vnútornú aj vonkajšiu obsluhu (`VO/VNO`), počíta Excel cigarety aj z dní `D-VO` (v jeho liste je iný vzorec než u ostatných). Web pre vnútornú obsluhu počíta len `D` a `N`, pre vonkajšiu len `D-VO` – pri zostávajúcich `D-VO` smenách sa preto môže plán cigariet mierne líšiť od Excelu.
 - Ak niekto v Exceli opraví preklep, označí sa to ako zmena smeny.
+- Váhy kategórií: nočná sekcia v `PLANY` ich nemá vyplnené, preto sa používa váha z dennej sekcie (jeden tovar má v Exceli jednu váhu). Ak sa váha zmení len v dennej časti, web to pri nočnej nezachytí.
+- „Cieľ na dnes“ počíta celú dnešnú smenu, aj keď už čiastočne prebehla – predaje sa do Excelu dopĺňajú až po smene.
+- Cieľ na dnes sa nezobrazí, ak meno nie je v zozname odmien (`SUMAR`) alebo ak dnešná smena nemá v `PLANY` vlastný plán (napr. `POL`).
+- Sviatky sú v kóde napevno (zoznam podľa zákona + Veľká noc sa počíta). Ak by pribudol nový sviatok, treba ho doplniť do `holMap` v `index.html`.
 - Nástenku tlačiť bez vybraného mena.
 - Výber „moje meno“ je len v prehliadači jednotlivého zamestnanca (nie je to zabezpečenie, dáta sú verejné).
 
@@ -227,6 +235,8 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 **Už hotovo (21. 10. 2026):** panel „Dnes a zajtra“, klik na deň (kto pracuje), kód `PN` v legende, skrátenie kódov s časom, zvýraznenie vlastného riadka v odmenách.
 
 **Už hotovo (22. 10. 2026):** „koľko ešte predať“ sa počíta podľa typu zostávajúcej smeny (denná / nočná / denná vonku) z nového listu `PLANY`; jednotky (`ks`, `litrov`) sa zobrazujú.
+
+**Už hotovo (22. 10. 2026, večer):** stĺpec „Cieľ na dnes“ (koľko predať na dnešnú smenu), váhy kategórií z `PLANY` (poradie a označenie „najviac do bonusu“), sviatky v záhlaví s názvom, zvýraznenie vlastného riadka v paneli „Dnes a zajtra“, počet dní do konca mesiaca.
 
 - QR kód na vytlačenom rozpise s odkazom na web.
 - Oznam od vedúceho z bunky v Exceli (žltý pruh na webe).
@@ -240,7 +250,7 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 
 > Pokračujeme vo vývoji webu so smenovkou a odmenami pre čerpaciu stanicu. Pozri si priloženú dokumentáciu a zdrojové kódy na konci. Systém: Excel → `sync.py` (Python, openpyxl, beží na Windows PC) → JSON do `docs/data` → git push → GitHub Pages → `docs/index.html` (statická stránka, JavaScript bez knižníc). Používateľ nie je programátor, píše po slovensky, potrebuje jednoduché kroky po jednom. Pri zmenách vždy dodaj **kompletné** súbory (nie len úryvky), aby sa nepoškodili pri kopírovaní. Pred úpravou over, či sedí štruktúra Excelu (kapitola 4). Zachovaj A4 tlač, sivé minulé dni a verejné odmeny.
 >
-> Nové funkcie (21. 10. 2026) sú v `docs/index.html`; 22. 10. 2026 pribudol do `sync.py` list `PLANY` (`plans` v JSON) pre výpočet „koľko ešte predať“ podľa typu smeny. Ak pridávaš novú funkciu, najprv ju odtestuj lokálne: v priečinku `docs` spusti `python -m http.server 8765` a otvor `http://127.0.0.1:8765/` (z disku cez `file://` prehliadač blokuje načítanie `data/*.json`).
+> Nové funkcie (21. 10. 2026) sú v `docs/index.html`; 22. 10. 2026 pribudol do `sync.py` list `PLANY` (`plans` v JSON) pre výpočet „koľko ešte predať“ podľa typu smeny. Večer 22. 10. pribudol stĺpec „Cieľ na dnes“, váhy kategórií (`w` v `plans`), sviatky a zvýraznenie vlastného riadka v paneli „Dnes a zajtra“. Ak pridávaš novú funkciu, najprv ju odtestuj lokálne: v priečinku `docs` spusti `python -m http.server 8765` a otvor `http://127.0.0.1:8765/` (z disku cez `file://` prehliadač blokuje načítanie `data/*.json`).
 
 ---
 
@@ -379,9 +389,9 @@ def read_plans(ws):
 
     List PLANY má sekcie:
         --- 1. VONKAJŠIA SMENA (D-VO) ---   stĺpec A = tovar, B = merná jednotka, C = denný plán
-        --- 2. VNÚTORNÁ DENNÁ SMENA (D) ---
-        --- 3. VNÚTORNÁ NOČNÁ SMENA (N) ---
-    Vrací {"D": {"CIGARETY": {"p": 150, "u": "ks"}}, "N": {...}, "D-VO": {...}}
+        --- 2. VNÚTORNÁ DENNÁ SMENA (D) ---  stĺpec D = váha kategórie (v %)
+        --- 3. VNÚTORNÁ NOČNÁ SMENA (N) ---  váha sa berie z dennej sekcie
+    Vrací {"D": {"CIGARETY": {"p": 150, "u": "ks", "w": 10}}, "N": {...}, "D-VO": {...}}
     """
     plans = {}
     kind = None
@@ -409,10 +419,20 @@ def read_plans(ws):
         cat = base_cat(s)
         if not cat:
             continue
-        plans.setdefault(kind, {})[plain(cat)] = {
+        entry = {
             "p": round(float(val), 4),
             "u": str(ws.cell(r, 2).value or "").strip(),
         }
+        weight = ws.cell(r, 4).value            # stĺpec D = Váha kategórie (v %)
+        if isinstance(weight, (int, float)):
+            entry["w"] = round(float(weight), 4)
+        plans.setdefault(kind, {})[plain(cat)] = entry
+
+    # Nočná sekcia nemá v PLANY vyplnenú váhu – platí rovnaká váha ako pri dennej
+    # (jeden tovar má v Exceli jednu váhu, tá istá pre D aj N).
+    for name, entry in plans.get("N", {}).items():
+        if "w" not in entry and "w" in plans.get("D", {}).get(name, {}):
+            entry["w"] = plans["D"][name]["w"]
     return plans
 
 
@@ -629,6 +649,12 @@ td.chg::after{content:"";position:absolute;top:2px;right:2px;width:7px;height:7p
 td.past,th.past{background:var(--past-bg)!important;color:var(--past-ink)!important}
 th.past .dn,th.past .dw{color:var(--past-ink)!important}
 .past .pill{background:#dcdfe3!important;color:var(--past-ink)!important}
+/* sviatok: červené číslo dňa + hviezdička */
+th.hol .dn{color:var(--red)}
+th.hol .dw::after{content:"★";color:var(--red);font-size:9px;vertical-align:super;margin-left:1px}
+th.past.hol .dn{color:#b91c1c!important}
+th.past.hol .dw::after{color:#b91c1c}
+.holit{color:var(--red);font-weight:600}
 tbody tr:last-child td{border-bottom:none}
 .foot{padding:10px 18px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
 
@@ -638,6 +664,14 @@ tbody tr:last-child td{border-bottom:none}
 .todaybox .none{color:var(--muted)}
 .todaybox .wd{font-size:10px;font-weight:400;color:var(--muted)}
 .todaybox td.emp{position:static;min-width:170px;max-width:170px}
+.todaybox tbody tr{cursor:pointer}
+.todaybox tr.mine td{background:#fff8d6}
+.todaybox tr.mine td.emp{font-weight:700}
+.todaybox td.goalcell{min-width:330px}
+.todaybox .goals{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;justify-content:center}
+.todaybox .goal{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:7px;
+  padding:2px 6px;font-size:11px;color:#374151;white-space:nowrap}
+.todaybox .goal b{color:#111827}
 
 /* --- klik na deň: kto pracuje --- */
 .daybox{display:none;border-top:1px solid var(--line);background:#fbfbf9;padding:12px 18px;font-size:13px}
@@ -658,6 +692,10 @@ tbody tr:last-child td{border-bottom:none}
 .gap{display:block;margin-top:4px;font-size:12px;color:#92400e}
 .ok{color:#15803d;font-weight:700}
 .chip{display:inline-block;margin:3px 6px 3px 0;padding:5px 9px;border-radius:8px;background:#fff;border:1px solid var(--line);font-size:12px}
+.chip.prio{border-color:#e6b800;background:#fffdf3}
+.chip .w{display:inline-block;background:#eef0f3;border-radius:5px;padding:0 5px;font-size:11px;font-weight:600;color:#4b5563}
+.chip.prio .w{background:#ffe9a8;color:#5b4700}
+.prioline{margin:8px 0 0;font-size:12px;color:#4b5563}
 
 @media (max-width:700px){body{padding:12px}h1{font-size:22px}}
 
@@ -704,14 +742,15 @@ tbody tr:last-child td{border-bottom:none}
     <span><i class="pill p-dov">DOV</i> dovolenka</span>
     <span><i class="pill p-pn">PN</i> práce neschopnosti</span>
     <span><i class="pill p-x">X</i> nedostupný</span>
+    <span><b class="holit">★</b> sviatok</span>
   </div>
 
   <div class="card todaybox" id="todaybox">
     <div class="card-h"><span>Dnes a zajtra</span><small id="todaynote"></small></div>
     <div class="tw">
       <table>
-        <thead><tr><th class="emp">Pracovník</th><th id="thToday">Dnes</th><th id="thTomm">Zajtra</th></tr></thead>
-        <tbody id="todaybody"><tr><td colspan="3" style="padding:14px;color:#6b7280">Načítavam…</td></tr></tbody>
+        <thead><tr><th class="emp">Pracovník</th><th id="thToday">Dnes</th><th id="thTomm">Zajtra</th><th id="thGoal">Cieľ na dnes</th></tr></thead>
+        <tbody id="todaybody"><tr><td colspan="4" style="padding:14px;color:#6b7280">Načítavam…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -735,12 +774,12 @@ tbody tr:last-child td{border-bottom:none}
   </div>
 
   <div class="card rewards">
-    <div class="card-h"><span>Odmeny: vnútorná obsluha</span><small>Kliknutím na meno uvidíš rozpis podľa kategórií</small></div>
+    <div class="card-h"><span>Odmeny: vnútorná obsluha</span><small id="vnoNote">Kliknutím na meno uvidíš rozpis podľa kategórií</small></div>
     <div class="tw"><table><thead><tr><th class="emp">Pracovník</th><th>Poradie</th><th>Plnenie</th><th>Bonus celkom</th></tr></thead><tbody id="vno"></tbody></table></div>
   </div>
 
   <div class="card rewards">
-    <div class="card-h"><span>Odmeny: vonkajšia obsluha</span><small>Kliknutím na meno uvidíš rozpis podľa kategórií</small></div>
+    <div class="card-h"><span>Odmeny: vonkajšia obsluha</span><small id="voNote">Kliknutím na meno uvidíš rozpis podľa kategórií</small></div>
     <div class="tw"><table><thead><tr><th class="emp">Pracovník</th><th>Poradie</th><th>Plnenie</th><th>Bonus celkom</th></tr></thead><tbody id="vo"></tbody></table></div>
   </div>
 </div>
@@ -783,6 +822,32 @@ function isToday(y,m,d){
   return y===n.getFullYear()&&m===n.getMonth()&&d===n.getDate();
 }
 
+/* ---------- sviatky (SK) ---------- */
+const HOL={};
+function easter(y){                      // Veľkonočná nedeľa (gregoriánsky kalendár)
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
+        f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+        h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+        l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+        mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  return new Date(y,mo-1,da);
+}
+function holMap(y){
+  if(HOL[y])return HOL[y];
+  const m={},put=(mo,d,n)=>{m[`${y}-${mo}-${d}`]=n;};
+  put(1,1,"Deň vzniku SR");put(1,6,"Zjavenie Pána (Traja králi)");
+  put(5,1,"Sviatok práce");put(5,8,"Deň víťazstva nad fašizmom");
+  put(7,5,"Sv. Cyril a Metod");put(8,29,"Výročie SNP");
+  put(9,1,"Deň Ústavy SR");put(9,15,"Sedembolestná Panna Mária");
+  put(11,1,"Sviatok všetkých svätých");put(11,17,"Deň boja za slobodu a demokraciu");
+  put(12,24,"Štedrý deň");put(12,25,"Prvý sviatok vianočný");put(12,26,"Druhý sviatok vianočný");
+  const e=easter(y);
+  const rel=(n,name)=>{const x=new Date(e.getFullYear(),e.getMonth(),e.getDate()+n);put(x.getMonth()+1,x.getDate(),name);};
+  rel(-2,"Veľký piatok");rel(1,"Veľkonočný pondelok");
+  return HOL[y]=m;
+}
+function holAt(y,m,d){return holMap(y)[`${y}-${m+1}-${d}`]||"";}
+
 async function showMonth(id){
   const body=document.getElementById("body");
   selDay=null;
@@ -798,10 +863,13 @@ async function showMonth(id){
     }
     const cls=d=>{
       const w=new Date(data.y,data.m,d).getDay();
-      return[(w===0||w===6)?"we":"",isPast(data.y,data.m,d)?"past":"",isToday(data.y,data.m,d)?"today":""].join(" ").trim();
+      return[(w===0||w===6)?"we":"",isPast(data.y,data.m,d)?"past":"",isToday(data.y,data.m,d)?"today":"",holAt(data.y,data.m,d)?"hol":""].join(" ").trim();
     };
     document.getElementById("head").innerHTML='<th class="emp">Zamestnanec</th>'+
-      data.days.map(d=>`<th class="day ${cls(d)}" onclick="showDay(${d})" title="Klikni: kto pracuje ${d}. ${data.m+1}."><span class="dn">${d}</span><span class="dw">${DOW[new Date(data.y,data.m,d).getDay()]}</span></th>`).join("");
+      data.days.map(d=>{
+        const h=holAt(data.y,data.m,d);
+        return`<th class="day ${cls(d)}" onclick="showDay(${d})" title="Klikni: kto pracuje ${d}. ${data.m+1}.${h?" – "+esc(h):""}"><span class="dn">${d}</span><span class="dw">${DOW[new Date(data.y,data.m,d).getDay()]}</span></th>`;
+      }).join("");
     body.innerHTML=data.shifts.map(row=>
       `<tr data-n="${esc(row.n)}"><td class="emp" onclick="pick(this.parentNode.dataset.n)">${esc(row.n)}</td>`+
       data.days.map(d=>{
@@ -832,7 +900,8 @@ function showDay(d){
   const rows=data.shifts.map(r=>({n:r.n,v:r.s[d]||""})).filter(x=>x.v);
   const work=rows.filter(x=>!isOff(x.v));
   const off=rows.filter(x=>isOff(x.v));
-  let h=`<div class="dh">${d}. ${data.m+1}. ${data.y} – ${DOWFULL[w]}</div>`;
+  const hol=holAt(data.y,data.m,d);
+  let h=`<div class="dh">${d}. ${data.m+1}. ${data.y} – ${DOWFULL[w]}${hol?` – <span class="holit">★ ${esc(hol)}</span>`:""}</div>`;
   h+='<div class="dl">';
   h+=work.length
       ? work.map(x=>`<span class="one"><b>${esc(x.n)}</b>${cell(x.v)}</span>`).join("")
@@ -864,25 +933,32 @@ async function loadToday(){
 function renderToday(){
   const tb=document.getElementById("todaybody");
   const note=document.getElementById("todaynote");
-  if(!todayData){tb.innerHTML='<tr><td colspan="3" style="padding:14px;color:#6b7280">Dnešná smenovka sa nepodarilo načítať.</td></tr>';note.textContent="";return;}
+  document.getElementById("thGoal").innerHTML='Cieľ na dnes<br><span class="wd">koľko ešte predať na dnešnú smenu (do 100 %)</span>';
+  if(!todayData){tb.innerHTML='<tr><td colspan="4" style="padding:14px;color:#6b7280">Dnešnú smenovku sa nepodarilo načítať.</td></tr>';note.textContent="";return;}
   const data=todayData, y=data.y, m=data.m;
   const n=new Date();
   const d1=n.getDate(), d2=d1+1;
-  const label=(d)=>`${DOWFULL[new Date(y,m,d).getDay()]} ${d}. ${m+1}.`;
+  const label=d=>{
+    const h=holAt(y,m,d);
+    return`${DOWFULL[new Date(y,m,d).getDay()]} ${d}. ${m+1}.${h?' <b class="holit">sviatok</b>':""}`;
+  };
   document.getElementById("thToday").innerHTML=`Dnes<br><span class="wd">${label(d1)}</span>`;
   document.getElementById("thTomm").innerHTML=`Zajtra<br><span class="wd">${label(d2)}</span>`;
-  note.textContent=data.label;
+  note.textContent=data.label+" · klikni na svoje meno";
   const has=d=>data.days.includes(d);
-  const names=data.shifts.map(r=>r.n);
   let rows="";
-  names.forEach(nm=>{
-    const r=data.shifts.find(x=>x.n===nm);
+  data.shifts.forEach(r=>{
     const v1=has(d1)?(r.s[d1]||""):"";
     const v2=has(d2)?(r.s[d2]||""):"";
     if(!v1&&!v2)return;
-    rows+=`<tr><td class="emp">${esc(nm)}</td><td>${cell(v1)||'<span class="none">–</span>'}</td><td>${cell(v2)||'<span class="none">–</span>'}</td></tr>`;
+    const goal=v1?todayGoal(data,r,d1):"";
+    rows+=`<tr data-n="${esc(r.n)}" onclick="pick(this.dataset.n)"><td class="emp">${esc(r.n)}</td>`+
+      `<td>${cell(v1)||'<span class="none">–</span>'}</td>`+
+      `<td>${cell(v2)||'<span class="none">–</span>'}</td>`+
+      `<td class="goalcell">${goal||'<span class="none">–</span>'}</td></tr>`;
   });
-  tb.innerHTML=rows||'<tr><td colspan="3" style="padding:14px;color:#6b7280">V dnešnom mesiaci nie sú zaznamenané žiadne smeny.</td></tr>';
+  tb.innerHTML=rows||'<tr><td colspan="4" style="padding:14px;color:#6b7280">V dnešnom mesiaci nie sú zaznamenané žiadne smeny.</td></tr>';
+  applyMeToday();
 }
 
 const HOURS48=48*3600*1000;
@@ -916,7 +992,13 @@ function applyMe(){
     bar.style.display="flex";
     bar.innerHTML=`<span>Zobrazené sú iba smeny: <strong>${esc(me)}</strong></span><button onclick="pick(me)">Zobraziť všetkých</button>`;
   }else bar.style.display="none";
+  applyMeToday();
   if(cache)changes(cache);
+}
+function applyMeToday(){
+  document.querySelectorAll("#todaybody tr[data-n]").forEach(r=>{
+    r.classList.toggle("mine",!!(me&&baseName(r.dataset.n)===baseName(me)));
+  });
 }
 
 const norm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -958,17 +1040,77 @@ function planOf(data,type,cat){
   const v=P[norm(cat).toUpperCase()];
   return (v&&typeof v.p==="number")?v:null;
 }
-/* Koľko ešte treba predať – počíta sa podľa typov zostávajúcich smien:
+/* Váha kategórie v bonuse (%, stĺpec D v PLANY); pri nočnej platí váha dennej. */
+function weightOf(data,cat){
+  const k=norm(cat).toUpperCase(),P=(data&&data.plans)||{};
+  for(const t of ["D","N","D-VO"]){
+    const e=P[t]&&P[t][k];
+    if(e&&typeof e.w==="number")return e.w;
+  }
+  return null;
+}
+function unitShort(u){
+  const s=String(u||"").toLowerCase();
+  if(!s||s==="ks")return"";
+  return s.startsWith("lit")?" l":" "+u;
+}
+function shortCat(n){
+  const s=String(n);
+  if(/^ad\s*blue/i.test(s))return"Ad Blue";
+  return s.split(" ")[0];
+}
+function shiftTypeOf(code){
+  const c=String(code||"").toUpperCase();
+  if(c.startsWith("D-VO"))return"D-VO";
+  if(c.startsWith("X")||c.startsWith("DOV")||c.startsWith("PN"))return"";
+  if(c.startsWith("POL"))return"POL";
+  if(c.startsWith("N"))return"N";
+  if(c.startsWith("D"))return"D";
+  return"";
+}
+/* Odmenu nájde aj vtedy, keď sa meno v SUMAR líši príponou v zátvorke,
+   alebo keď je človek v oboch zoznamoch (VO/VNO). */
+function findReward(data,id,name){
+  const list=(data&&data[id])||[];
+  const b=baseName(name);
+  let same=list.filter(x=>baseName(x.n)===b);
+  if(!same.length)return null;
+  if(same.length>1){
+    const isVo=x=>/\(vo\)/.test(norm(x.n));
+    const pref=same.filter(x=>id==="vo"?isVo(x):!isVo(x));
+    if(pref.length)return pref[0];
+  }
+  return same[0];
+}
+/* Koľko ešte predať na dnešnú smenu – rovnaká matematika ako gap2. */
+function todayGoal(data,row,day){
+  const t=shiftTypeOf(row.s[day]);
+  if(!t)return"";
+  if(t==="POL")return'<span class="none">POL – bez plánu</span>';
+  const id=t==="D-VO"?"vo":"vno";
+  const rw=findReward(data,id,row.n);
+  if(!rw||!rw.c||!rw.c.length)return"";
+  const cnt=shiftsByType(data,id,rw.n),parts=[];
+  rw.c.forEach(c=>{
+    const ps=perShift(data,id,c,cnt);
+    const r=ps.rows.find(x=>x.t===t);
+    if(!r)return;
+    const ok=ps.g100<=0,val=ps.per(r,ok?0:ps.g100);
+    const tip=`${c[0]}: ${ok?"plán splnený – stačí":"do 100 % chýba"} ${val}${r.u?" "+r.u:""} na ${TYPELBL[t]}`;
+    parts.push({w:weightOf(data,c[0])||0,
+      html:`<span class="goal" title="${esc(tip)}">${esc(shortCat(c[0]))} <b>${val}</b>${unitShort(r.u)}</span>`});
+  });
+  if(!parts.length)return"";
+  parts.sort((a,b)=>b.w-a.w);
+  return`<div class="goals">${parts.map(p=>p.html).join("")}</div>`;
+}
+/* Plán zostávajúcich smien pre jednu kategóriu:
    plán zostávajúcich smien = denný plán (PLANY) × počet smien daného typu,
-   deficit (mesačný plán − skutočnosť) sa rozdelí medzi typy úmerne ich plánu. */
-function gap2(data,id,c,cnt){
-  const plan=c[1],act=c[2];
-  if(!plan)return"";
-  const types=REWTYPES[id]||[];
-  const left=types.reduce((s,t)=>s+(cnt?cnt[t]:0),0);
-  const pol=cnt?cnt.POL:0;
+   deficit (mesačný plán − skutočnosť) sa rozdelí medzi typy úmerne ich plánu.
+   ps.per(row, g) = koľko na jednu smenu daného typu (g = g90 alebo g100). */
+function perShift(data,id,c,cnt){
+  const plan=c[1],act=c[2],types=REWTYPES[id]||[];
   const g90=Math.max(0,plan*0.9-act),g100=Math.max(0,plan-act);
-  const c90=Math.ceil(g90-1e-9),c100=Math.ceil(g100-1e-9);
   const rows=[];let sum=0;
   types.forEach(t=>{
     const n=cnt?cnt[t]:0;
@@ -978,16 +1120,26 @@ function gap2(data,id,c,cnt){
     const v=p.p*n;sum+=v;
     rows.push({t:t,n:n,v:v,u:p.u||""});
   });
-  if(!rows.length){                       // zostávajúce smeny nemajú pre tento tovar plán
+  return{
+    rows:rows,sum:sum,g90:g90,g100:g100,
+    left:types.reduce((s,t)=>s+(cnt?cnt[t]:0),0),pol:cnt?cnt.POL:0,
+    per:(r,g)=>Math.ceil((r.v+g*r.v/sum)/r.n-1e-9),
+  };
+}
+function gap2(data,id,c,cnt){
+  const plan=c[1];
+  if(!plan)return"";
+  const ps=perShift(data,id,c,cnt);
+  const g90=ps.g90,g100=ps.g100,c90=Math.ceil(g90-1e-9),c100=Math.ceil(g100-1e-9);
+  if(!ps.rows.length){                    // zostávajúce smeny nemajú pre tento tovar plán
     if(g100<=0&&g90<=0)return'<span class="ok">✓ Plán 100 % splnený</span>';
     let pre="";
     if(cnt===null)pre="";
-    else if(left===0)pre=pol?`Zostávajú len krátke polnočné smeny (${pol}× POL), tie nemajú vlastný plán. `
+    else if(ps.left===0)pre=ps.pol?`Zostávajú len krátke polnočné smeny (${ps.pol}× POL), tie nemajú vlastný plán. `
       :`Už nemá žiadne naplánované ${id==="vo"?"vonkajšie":"vnútorné"} smeny. `;
     return`${pre}Do 90 % chýba <strong>${c90}</strong>, do 100 % chýba <strong>${c100}</strong>.`;
   }
-  const per=(r,g)=>Math.ceil((r.v+g*r.v/sum)/r.n-1e-9);   // koľko na jednu smenu daného typu
-  const line=g=>rows.map(r=>`${TYPELBL[r.t]} (${r.n}×) <strong>${per(r,g)}${r.u?" "+r.u:""}</strong>`).join(" · ");
+  const line=g=>ps.rows.map(r=>`${TYPELBL[r.t]} (${r.n}×) <strong>${ps.per(r,g)}${r.u?" "+r.u:""}</strong>`).join(" · ");
   if(g100>0){
     let h=g90>0?`do 90 %: ${line(g90)}<br>`:"";
     return h+`do 100 %: ${line(g100)}`;
@@ -995,18 +1147,39 @@ function gap2(data,id,c,cnt){
   return`<span class="ok">✓ Plán 100 % splnený</span><br>plán na zostávajúce smeny: ${line(0)}`;
 }
 
+function daysLeft(data){
+  const n=new Date();
+  if(!data||data.y!==n.getFullYear()||data.m!==n.getMonth())return null;
+  return new Date(data.y,data.m+1,0).getDate()-n.getDate();
+}
+
 function rewards(list,id,data){
   const tb=document.getElementById(id);
+  const note=document.getElementById(id==="vno"?"vnoNote":"voNote");
+  if(note){
+    const dl=daysLeft(data);
+    const txt=dl==null?"":(dl===0?"posledný deň mesiaca · ":`do konca mesiaca ${dl} ${dl===1?"deň":(dl<5?"dni":"dní")} · `);
+    note.textContent=txt+"kategórie sú zoradené podľa váhy (najviac vľavo)";
+  }
   if(!list||!list.length){tb.innerHTML='<tr><td colspan="4" style="padding:14px;color:#6b7280">Žiadne záznamy odmien.</td></tr>';return;}
   tb.innerHTML=list.map((it,i)=>{
     const sid=`${id}-${i}`, has=it.c&&it.c.length, cnt=shiftsByType(data,id,it.n);
     const mine=!!(me&&baseName(it.n)===baseName(me));
+    const cats=has?[...it.c].sort((a,b)=>(weightOf(data,b[0])||0)-(weightOf(data,a[0])||0)):null;
+    const wmax=cats?Math.max(...cats.map(c=>weightOf(data,c[0])||0)):0;
+    const top=wmax>0?cats.filter(c=>(weightOf(data,c[0])||0)===wmax):[];
     let h=`<tr class="rw${mine?" mine":""}" onclick="tog('${sid}')"><td class="emp">${esc(it.n)}${has?' <span style="font-size:10px;color:#9aa1ab">▼</span>':""}</td>
       <td>${it.rank!=null?it.rank+".":"-"}</td>
       <td>${it.pl?(it.pl*100).toFixed(1)+" %":"-"}</td>
       <td><strong>${it.tot!=null?it.tot.toFixed(2)+" €":"-"}</strong></td></tr>`;
-    if(has)h+=`<tr id="${sid}" class="dt${mine?" mine":""}"><td colspan="4">`+it.c.map(c=>
-      `<span class="chip"><strong>${esc(c[0])}:</strong> plán ${c[1]} · skutočnosť ${c[2]} (${(c[3]*100).toFixed(0)} %) · <strong>${c[4].toFixed(2)} €</strong><br><span class="gap">${gap2(data,id,c,cnt)}</span></span>`).join("")+"</td></tr>";
+    if(has)h+=`<tr id="${sid}" class="dt${mine?" mine":""}"><td colspan="4">`
+      +(top.length?`<div class="prioline">Najviac do bonusu: ${top.map(c=>`<strong>${esc(c[0])}</strong>`).join(", ")} (váha ${wmax} %)</div>`:"")
+      +cats.map(c=>{
+        const w=weightOf(data,c[0]);
+        return`<span class="chip${wmax>0&&w===wmax?" prio":""}"><strong>${esc(c[0])}:</strong> plán ${c[1]} · skutočnosť ${c[2]} (${(c[3]*100).toFixed(0)} %) · <strong>${c[4].toFixed(2)} €</strong>`
+          +(w!=null?` · <span class="w" title="Váha kategórie v bonuse (Excel, PLANY)">váha ${w} %</span>`:"")
+          +`<br><span class="gap">${gap2(data,id,c,cnt)}</span></span>`;
+      }).join("")+"</td></tr>";
     return h;
   }).join("");
 }

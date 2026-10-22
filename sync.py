@@ -110,9 +110,9 @@ def read_plans(ws):
 
     List PLANY má sekcie:
         --- 1. VONKAJŠIA SMENA (D-VO) ---   stĺpec A = tovar, B = merná jednotka, C = denný plán
-        --- 2. VNÚTORNÁ DENNÁ SMENA (D) ---
-        --- 3. VNÚTORNÁ NOČNÁ SMENA (N) ---
-    Vrací {"D": {"CIGARETY": {"p": 150, "u": "ks"}}, "N": {...}, "D-VO": {...}}
+        --- 2. VNÚTORNÁ DENNÁ SMENA (D) ---  stĺpec D = váha kategórie (v %)
+        --- 3. VNÚTORNÁ NOČNÁ SMENA (N) ---  váha sa berie z dennej sekcie
+    Vrací {"D": {"CIGARETY": {"p": 150, "u": "ks", "w": 10}}, "N": {...}, "D-VO": {...}}
     """
     plans = {}
     kind = None
@@ -140,10 +140,20 @@ def read_plans(ws):
         cat = base_cat(s)
         if not cat:
             continue
-        plans.setdefault(kind, {})[plain(cat)] = {
+        entry = {
             "p": round(float(val), 4),
             "u": str(ws.cell(r, 2).value or "").strip(),
         }
+        weight = ws.cell(r, 4).value            # stĺpec D = Váha kategórie (v %)
+        if isinstance(weight, (int, float)):
+            entry["w"] = round(float(weight), 4)
+        plans.setdefault(kind, {})[plain(cat)] = entry
+
+    # Nočná sekcia nemá v PLANY vyplnenú váhu – platí rovnaká váha ako pri dennej
+    # (jeden tovar má v Exceli jednu váhu, tá istá pre D aj N).
+    for name, entry in plans.get("N", {}).items():
+        if "w" not in entry and "w" in plans.get("D", {}).get(name, {}):
+            entry["w"] = plans["D"][name]["w"]
     return plans
 
 
