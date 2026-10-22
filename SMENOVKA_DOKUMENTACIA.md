@@ -215,6 +215,7 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 - Dnešný deň sa pri výpočte smien počíta ako ešte neodpracovaný.
 - Do počtu zostávajúcich smien sa **nezapočítavajú** krátke polnočné smeny `POL` (nemajú v `PLANY` vlastný plán) a (pri vnútornej obsluhe) denné smeny vonku `D-VO` – je to pravidlo majiteľa, mení sa v `shiftsByType()`.
 - Ak sa meno v `SUMAR` píše inak ako v `MASTER`, počet smien sa nezobrazí (web vtedy ukáže len celkový rozdiel).
+- Pri zamestnancovi, ktorý robí vnútornú aj vonkajšiu obsluhu (`VO/VNO`), počíta Excel cigarety aj z dní `D-VO` (v jeho liste je iný vzorec než u ostatných). Web pre vnútornú obsluhu počíta len `D` a `N`, pre vonkajšiu len `D-VO` – pri zostávajúcich `D-VO` smenách sa preto môže plán cigariet mierne líšiť od Excelu.
 - Ak niekto v Exceli opraví preklep, označí sa to ako zmena smeny.
 - Nástenku tlačiť bez vybraného mena.
 - Výber „moje meno“ je len v prehliadači jednotlivého zamestnanca (nie je to zabezpečenie, dáta sú verejné).
