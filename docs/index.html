@@ -430,16 +430,17 @@ function gap2(data,id,c,cnt){
     if(g100<=0&&g90<=0)return'<span class="ok">✓ Plán 100 % splnený</span>';
     let pre="";
     if(cnt===null)pre="";
-    else if(left===0)pre=pol?`Zostávajú len krátke polnočné smeny (${pol}× POL), tie nemajú vlastný plán. `:"Už nemá žiadne naplánované smeny. ";
+    else if(left===0)pre=pol?`Zostávajú len krátke polnočné smeny (${pol}× POL), tie nemajú vlastný plán. `
+      :`Už nemá žiadne naplánované ${id==="vo"?"vonkajšie":"vnútorné"} smeny. `;
     return`${pre}Do 90 % chýba <strong>${c90}</strong>, do 100 % chýba <strong>${c100}</strong>.`;
   }
   const per=(r,g)=>Math.ceil((r.v+g*r.v/sum)/r.n-1e-9);   // koľko na jednu smenu daného typu
   const line=g=>rows.map(r=>`${TYPELBL[r.t]} (${r.n}×) <strong>${per(r,g)}${r.u?" "+r.u:""}</strong>`).join(" · ");
-  let h="";
-  if(g90>0)h+=`do 90 %: ${line(g90)}`;
-  if(g100>0)h+=`${h?"<br>":""}do 100 %: ${line(g100)}`;
-  else h+=`${h?"<br>":""}<span class="ok">✓ Plán 100 % splnený</span>`;
-  return h;
+  if(g100>0){
+    let h=g90>0?`do 90 %: ${line(g90)}<br>`:"";
+    return h+`do 100 %: ${line(g100)}`;
+  }
+  return`<span class="ok">✓ Plán 100 % splnený</span><br>plán na zostávajúce smeny: ${line(0)}`;
 }
 
 function rewards(list,id,data){
