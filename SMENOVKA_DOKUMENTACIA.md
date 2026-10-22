@@ -80,6 +80,17 @@ Skript **číta Excel iba na čítanie**, vždy z dočasnej kópie, takže nevad
 - kategórie (napr. cigarety) začínajú od stĺpca H (8) a každá zaberá 5 stĺpcov,
 - zamestnanci s nulovým bonusom aj plnením sa nezobrazia (brigádnici).
 
+**List `PLANY`** (nájde sa podľa slova „PLANY“) – **denný plán tovaru podľa typu smeny**:
+- bunky so začiatkom `---` sú nadpisy sekcií (napr. `--- 2. VNÚTORNÁ DENNÁ SMENA (D) ---`) a určujú typ smeny: `D-VO` (vonkajšia), `D` (vnútorná denná), `N` (vnútorná nočná),
+- stĺpec A = tovar, stĺpec B = merná jednotka (`ks`, `litrov`), stĺpec C = denný plán,
+- nočné tovary majú v názve príponu `(noc)` – pre porovnanie s kategóriami v `SUMAR` sa prípona zahodí (`Cigarety (noc)` → `Cigarety`).
+
+| Typ smeny | Denný plán (ríkober 2026) |
+|---|---|
+| `D-VO` vonkajšia | V-POWER 1550 litrov, SCREENWASH 6 ks, OLEJ 1 ks, AD BLUE 150 litrov |
+| `D` vnútorná denná | Cigarety 150 ks, Tabak 32, Doplnky 30, Hotdog 25, Bagety Detvan 22, Káva 23 |
+| `N` vnútorná nočná | Cigarety 90 ks, Tabak 36, Doplnky 30, Hotdog 20, Bagety Detvan 22, Káva 6 |
+
 ### Kódy smien
 
 | Kód | Význam | Farba na webe |
@@ -115,11 +126,16 @@ id, label, y (rok), m (mesiac 0–11), days [1..31],
 shifts: [ { n: "Meno", s: { "1": "D", "2": "N", ... } } ],
 vno / vo: [ { n, rank, tot (bonus €), pl (plnenie podiel),
               c: [ [kategória, plán, skutočnosť, podiel, €, ďalšie], ... ] } ],
+plans: { "D-VO": { "V-POWER": { p: 1550, u: "litrov" } },
+         "D":    { "CIGARETY": { p: 150, u: "ks" } },
+         "N":    { "CIGARETY": { p: 90,  u: "ks" } } },
 updated: čas poslednej zmeny,
 changes: { "Meno": { "17": { was: "N", at: "ISO čas" } } }
 ```
 
 Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podiel, `c[4]` = bonus v €.
+
+`plans` je **denný plán tovaru podľa typu smeny** z listu `PLANY` v Exceli (kľúč = názov kategórie bez diakritiky, veľkými písmenami; `p` = denný plán, `u` = jednotka). Bez neho web vie iba „koľko chýba celkovo“, nie „koľko na konkrétny typ smeny“.
 
 ---
 
@@ -128,7 +144,8 @@ Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podi
 - `EXCEL_FOLDER`, `PUSH`, `PUSH_EVERY_MINUTES` (0 = ihneď), `POLL_SECONDS` (20 s) sú nastavenia na vrchu súboru.
 - Každých 20 s skontroluje čas zmeny Excelov. Počká 5 s po poslednom uložení (kým Excel dopíše súbor).
 - Spracuje len mesiace: **minulý, aktuálny a nasledujúce 2** (`valid_range`).
-- `read_schedule` / `read_rewards` / `read_month` prevedú Excel na JSON.
+- `read_schedule` / `read_rewards` / `read_plans` / `read_month` prevedú Excel na JSON.
+- `read_plans()` číta list `PLANY` a uloží **denný plán tovaru podľa typu smeny** (`D`, `N`, `D-VO`) do JSON pod kľúčom `plans` (kategórie bez diakritiky, prípona `(noc)` zahodená).
 - Ak sa obsah zmenil (porovnáva sa odtlačok bez `updated` a `changes`), doplní `updated` a `changes` a súbor prepíše.
 - `merge_changes` zaznamenáva zmenené smeny **dnes a v budúcnosti** s pôvodnou hodnotou; záznam žije 48 hodín. Nový mesiac a nový zamestnanec sa neoznačujú.
 - `push()` urobí `git add -A`, `git commit`, `git push`. Ak nie je čo commitnúť, nevadí.
@@ -145,7 +162,7 @@ Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podi
 - **Klik na deň:** kliknutím na číslo dňa sa pod tabuľkou zobrazí „kto ten deň pracuje“ – chipy s menom a smenou; tí, ktorí majú dovolenku / práce neschopnosti / sú nedostupní, sú oddelení nižšie. Klik na ten istý deň panel znova zavrie.
 - **Označenie zmien:** červená bodka v bunke + okno „Nedávne zmeny v rozpise“ (48 h, len dnes a neskôr).
 - **Odmeny:** tabuľky pre vnútornú a vonkajšiu obsluhu (poradie, plnenie, bonus). Po kliknutí na meno sa rozbalí rozpis kategórií. Ak je vybrané „moje meno“, vlastný riadok v odmenách je zvýraznený žltou farbou.
-- **Koľko ešte predať:** pri každej kategórii (napr. cigarety) ukáže, koľko treba predať **na každú zostávajúcu smenu**, aby zamestnanec dosiahol 90 % a 100 % plánu (chýbajúce množstvo ÷ počet zostávajúcich smien, zaokrúhlené nahor). Smeny sa počítajú od dneška, bez `X`, `DOV` a `PN`. Ak je plán splnený, ukáže zelené potvrdenie. Jednotka sa nezobrazuje (preberá sa z Excelu).
+- **Koľko ešte predať:** pri každej kategórii (napr. cigarety) ukáže, koľko treba predať **na každú zostávajúcu smenu – zvlášť pre každý typ smeny** (denná / nočná / denná vonku), aby zamestnanec dosiahol 90 % a 100 % mesačného plánu. Výpočet: *plán zostávajúcich smien = denný plán z Excelu (`PLANY`) × počet smien daného typu*; deficit (mesačný plán − skutočnosť) sa rozdelí medzi typy úmerne ich plánu a pripočíta sa k plánu týchto smien (zaokrúhlene nahor). Smeny sa počítajú od dneška, bez `X`, `DOV`, `PN` a bez krátkych `POL` (tie nemajú vlastný plán); pri vnútornej obsluhe sa nepočítajú denné smeny vonku `D-VO`, pri vonkajšej naopak. Ak je plán splnený, ukáže zelené potvrdenie a denný plán na zostávajúce smeny. Jednotka (`ks`, `litrov`) sa berie z Excelu a zobrazuje sa.
 - **Tlač A4 naležato** (`@media print`): vytlačí len nadpis, legendu a rozpis, bez posuvníkov, odmien, panelu „Dnes a zajtra“, dňového detailu a ovládacích prvkov. Sivé dni ostávajú sivé. Na vytlačenie nástenky nemá byť vybraté žiadne meno (vytlačil by sa len jeden riadok).
 - Meno z rozpisu sa páruje s menom v odmenách podľa mena bez diakritiky a bez zátvorky `(VO)`.
 
@@ -174,6 +191,7 @@ Web zobrazuje v kategórii: `c[1]` = plán, `c[2]` = skutočnosť, `c[3]` = podi
 | Dovolenka sa zobrazovala ako denná | Poradie kontrol kódov v `pill()` (opravené). |
 | `PN` (práce neschopnosti) sa zobrazoval bez farby a bez legendy | Web poznal len D, D-VO, N, POL, DOV, X. Doplnený kód `PN` (ružová) aj do legendy a do počítania zostávajúcich smien. |
 | Kódy s časom (`POL 18:00-22:30`) roztláčali tabuľku | Web zobrazuje iba samotný kód, celý kód ostáva v názve bunky. |
+| „Koľko ešte predať“ delilo rovnaký rozdiel na všetky smeny | Nočná smena má iný denný plán ako denná (cigarety 90 vs. 150) a vonkajšia úplne iný (V-POWER 1550 litrov). Výpočet prepočítaný podľa typu smeny z listu `PLANY`. |
 | Bodky zmien sa neukazujú | Bežala stará verzia `sync.py` bez `merge_changes`. Prepísať a reštartovať skript. |
 
 Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` súčasne).
@@ -192,10 +210,11 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 
 ## 11. Známe obmedzenia a čo overiť
 
-- Výpočet „koľko ešte predať“ predpokladá, že `c[1]` je plán a `c[2]` skutočnosť – **overené na Exceli** (plán 100, skutočnosť 60 → do 90 %: ešte 30, do 100 %: ešte 40). Jednotky preberá z Excelu.
+- Mesačný plán v `SUMAR` (a teda aj na webe) je súčet denných plánov len za **dni, ktoré už majú zapísané predaje** – tak to počíta majiteľov Excel. Preto sa „koľko ešte predať“ počíta ako *deficit (mesačný plán − skutočnosť) + denný plán zostávajúcich smien*, a nie jednoduchým delením rozdielu.
+- Výpočet „koľko ešte predať“ potrebuje v JSON kľúč `plans` (list `PLANY` v Exceli). Ak v mesiaci chýba, web ukáže iba celkový rozdiel „do 90 % / do 100 % chýba X“.
 - Dnešný deň sa pri výpočte smien počíta ako ešte neodpracovaný.
-- Do počtu zostávajúcich smien sa **nezapočítavajú** krátke polnočné smeny `POL` a (pri vnútornej obsluhe) denné smeny vonku `D-VO` – je to pravidlo majiteľa, zmeniť sa dá v `shiftsLeft()`.
-- Ak sa meno v `SUMAR` píše inak ako v `MASTER`, počet smien sa nezobrazí.
+- Do počtu zostávajúcich smien sa **nezapočítavajú** krátke polnočné smeny `POL` (nemajú v `PLANY` vlastný plán) a (pri vnútornej obsluhe) denné smeny vonku `D-VO` – je to pravidlo majiteľa, mení sa v `shiftsByType()`.
+- Ak sa meno v `SUMAR` píše inak ako v `MASTER`, počet smien sa nezobrazí (web vtedy ukáže len celkový rozdiel).
 - Ak niekto v Exceli opraví preklep, označí sa to ako zmena smeny.
 - Nástenku tlačiť bez vybraného mena.
 - Výber „moje meno“ je len v prehliadači jednotlivého zamestnanca (nie je to zabezpečenie, dáta sú verejné).
@@ -205,6 +224,8 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 ## 12. Nápady na ďalší vývoj
 
 **Už hotovo (21. 10. 2026):** panel „Dnes a zajtra“, klik na deň (kto pracuje), kód `PN` v legende, skrátenie kódov s časom, zvýraznenie vlastného riadka v odmenách.
+
+**Už hotovo (22. 10. 2026):** „koľko ešte predať“ sa počíta podľa typu zostávajúcej smeny (denná / nočná / denná vonku) z nového listu `PLANY`; jednotky (`ks`, `litrov`) sa zobrazujú.
 
 - QR kód na vytlačenom rozpise s odkazom na web.
 - Oznam od vedúceho z bunky v Exceli (žltý pruh na webe).
@@ -218,7 +239,7 @@ Dva skripty naraz sa nemajú spúšťať (`spusti.bat` a `spusti_skryte.vbs` sú
 
 > Pokračujeme vo vývoji webu so smenovkou a odmenami pre čerpaciu stanicu. Pozri si priloženú dokumentáciu a zdrojové kódy na konci. Systém: Excel → `sync.py` (Python, openpyxl, beží na Windows PC) → JSON do `docs/data` → git push → GitHub Pages → `docs/index.html` (statická stránka, JavaScript bez knižníc). Používateľ nie je programátor, píše po slovensky, potrebuje jednoduché kroky po jednom. Pri zmenách vždy dodaj **kompletné** súbory (nie len úryvky), aby sa nepoškodili pri kopírovaní. Pred úpravou over, či sedí štruktúra Excelu (kapitola 4). Zachovaj A4 tlač, sivé minulé dni a verejné odmeny.
 >
-> Nové funkcie (21. 10. 2026) sú iba v `docs/index.html` – `sync.py` ani formát JSON sa nemenili. Ak pridávaš novú funkciu, najprv ju odtestuj lokálne: v priečinku `docs` spusti `python -m http.server 8765` a otvor `http://127.0.0.1:8765/` (z disku cez `file://` prehliadač blokuje načítanie `data/*.json`).
+> Nové funkcie (21. 10. 2026) sú v `docs/index.html`; 22. 10. 2026 pribudol do `sync.py` list `PLANY` (`plans` v JSON) pre výpočet „koľko ešte predať“ podľa typu smeny. Ak pridávaš novú funkciu, najprv ju odtestuj lokálne: v priečinku `docs` spusti `python -m http.server 8765` a otvor `http://127.0.0.1:8765/` (z disku cez `file://` prehliadač blokuje načítanie `data/*.json`).
 
 ---
 
@@ -347,6 +368,53 @@ def read_rewards(ws, key):
     return out
 
 
+def base_cat(name):
+    """Názov kategórie bez zátvorky na konci ('Cigarety (noc)' -> 'Cigarety')."""
+    return re.sub(r"\s*\(.*?\)\s*$", "", str(name)).strip()
+
+
+def read_plans(ws):
+    """Denný plán tovaru podľa typu smeny (D-VO / D / N) z listu PLANY.
+
+    List PLANY má sekcie:
+        --- 1. VONKAJŠIA SMENA (D-VO) ---   stĺpec A = tovar, B = merná jednotka, C = denný plán
+        --- 2. VNÚTORNÁ DENNÁ SMENA (D) ---
+        --- 3. VNÚTORNÁ NOČNÁ SMENA (N) ---
+    Vrací {"D": {"CIGARETY": {"p": 150, "u": "ks"}}, "N": {...}, "D-VO": {...}}
+    """
+    plans = {}
+    kind = None
+    for r in range(1, ws.max_row + 1):
+        a = ws.cell(r, 1).value
+        if a in (None, ""):
+            continue
+        s = str(a).strip()
+        if s.startswith("---"):                      # nadpis sekcie
+            up = plain(s)
+            if "D-VO" in up:
+                kind = "D-VO"
+            elif "NOC" in up:
+                kind = "N"
+            elif "DENN" in up:
+                kind = "D"
+            else:
+                kind = None
+            continue
+        if not kind:
+            continue
+        val = ws.cell(r, 3).value
+        if not isinstance(val, (int, float)):
+            continue
+        cat = base_cat(s)
+        if not cat:
+            continue
+        plans.setdefault(kind, {})[plain(cat)] = {
+            "p": round(float(val), 4),
+            "u": str(ws.cell(r, 2).value or "").strip(),
+        }
+    return plans
+
+
 def read_month(path, year, month):
     with tempfile.TemporaryDirectory() as tmp:    # kópia, aby nevadil otvorený Excel
         copy = Path(tmp) / "x.xlsx"
@@ -354,10 +422,15 @@ def read_month(path, year, month):
         wb = load_workbook(copy, data_only=True)
     days, shifts = read_schedule(find_sheet(wb, "MASTER"), year, month)
     su = find_sheet(wb, "SUMAR")
+    try:
+        plans = read_plans(find_sheet(wb, "PLANY"))
+    except Exception:
+        plans = {}
     return {
         "id": f"{year}-{month:02d}", "label": f"{MONTHS[month - 1]} {year}",
         "y": year, "m": month - 1, "days": days, "shifts": shifts,
         "vno": read_rewards(su, "VNUTORNA"), "vo": read_rewards(su, "VONKAJSIA"),
+        "plans": plans,
     }
 
 
@@ -847,8 +920,13 @@ function applyMe(){
 
 const norm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const baseName=s=>norm(s).replace(/\(.*?\)/g," ").replace(/\s+/g," ").trim();
-// počet ešte naplánovaných smien (od dneška) pre zamestnanca; null = v rozpise sa nenašiel
-function shiftsLeft(data,id,name){
+/* Plány sú podľa typu smeny (Excel, list PLANY):
+   vno = vnútorná obsluha (D = vnútorná denná, N = vnútorná nočná)
+   vo  = vonkajšia obsluha (D-VO = denná vonku)                        */
+const REWTYPES={vno:["D","N"],vo:["D-VO"]};
+const TYPELBL={D:"denná smena",N:"nočná smena","D-VO":"denná smena vonku"};
+// zostávajúce smeny po type (od dneška); null = v rozpise sa nenašiel
+function shiftsByType(data,id,name){
   if(!data||!data.shifts)return null;
   const b=baseName(name);
   let rows=data.shifts.filter(r=>baseName(r.n)===b);
@@ -858,45 +936,76 @@ function shiftsLeft(data,id,name){
     if(pickRows.length)rows=pickRows;
   }
   if(!rows.length)return null;
-  let n=0;
+  const cnt={D:0,N:0,"D-VO":0,POL:0};
   data.days.forEach(d=>{
     if(isPast(data.y,data.m,d))return;
     rows.forEach(r=>{
       const v=(r.s[d]||"").toUpperCase();
       if(!v)return;
-      if(v.startsWith("X")||v.startsWith("DOV")||v.startsWith("PN"))return;   // nepracuje
-      if(v.startsWith("POL"))return;                                            // krátka polnočná smena
-      if(id!=="vo"&&v.startsWith("D-VO"))return;                                // denná vonku je pre vonkajšiu obsluhu
-      n++;
+      if(v.startsWith("D-VO")){cnt["D-VO"]++;return;}                                  // denná vonku
+      if(v.startsWith("X")||v.startsWith("DOV")||v.startsWith("PN"))return;          // nepracuje
+      if(v.startsWith("POL")){cnt.POL++;return;}                                      // krátka polnočná smena (bez plánu)
+      if(v.startsWith("N")){cnt.N++;return;}
+      if(v.startsWith("D")){cnt.D++;}
     });
   });
-  return n;
+  return cnt;
 }
-function gap(c,left){
+// denný plán tovaru pre daný typ smeny (z Excelu, list PLANY)
+function planOf(data,type,cat){
+  const P=(data&&data.plans&&data.plans[type])||{};
+  const v=P[norm(cat).toUpperCase()];
+  return (v&&typeof v.p==="number")?v:null;
+}
+/* Koľko ešte treba predať – počíta sa podľa typov zostávajúcich smien:
+   plán zostávajúcich smien = denný plán (PLANY) × počet smien daného typu,
+   deficit (mesačný plán − skutočnosť) sa rozdelí medzi typy úmerne ich plánu. */
+function gap2(data,id,c,cnt){
   const plan=c[1],act=c[2];
   if(!plan)return"";
-  const g=p=>Math.max(0,Math.ceil(plan*p-act-1e-9));
-  const g90=g(0.9),g100=g(1);
-  if(!g100)return'<span class="ok">✓ Plán 100 % splnený</span>';
-  if(left===null)return`Do 90 % chýba <strong>${g90}</strong>, do 100 % chýba <strong>${g100}</strong>.`;
-  if(left===0)return`Už nemá žiadne naplánované smeny. Chýba: do 90 % <strong>${g90}</strong>, do 100 % <strong>${g100}</strong>.`;
-  const s90=Math.ceil(g90/left),s100=Math.ceil(g100/left);
-  const l90=g90?`do 90 %: <strong>${s90}</strong>`:'<span class="ok">90 % už splnené</span>';
-  return`Na každú smenu treba predať:<br>${l90} · do 100 %: <strong>${s100}</strong> <small>(ostáva ${left} smien)</small>`;
+  const types=REWTYPES[id]||[];
+  const left=types.reduce((s,t)=>s+(cnt?cnt[t]:0),0);
+  const pol=cnt?cnt.POL:0;
+  const g90=Math.max(0,plan*0.9-act),g100=Math.max(0,plan-act);
+  const c90=Math.ceil(g90-1e-9),c100=Math.ceil(g100-1e-9);
+  const rows=[];let sum=0;
+  types.forEach(t=>{
+    const n=cnt?cnt[t]:0;
+    if(!n)return;
+    const p=planOf(data,t,c[0]);
+    if(!p)return;                       // tento tovar nemá plán pre daný typ smeny
+    const v=p.p*n;sum+=v;
+    rows.push({t:t,n:n,v:v,u:p.u||""});
+  });
+  if(!rows.length){                       // zostávajúce smeny nemajú pre tento tovar plán
+    if(g100<=0&&g90<=0)return'<span class="ok">✓ Plán 100 % splnený</span>';
+    let pre="";
+    if(cnt===null)pre="";
+    else if(left===0)pre=pol?`Zostávajú len krátke polnočné smeny (${pol}× POL), tie nemajú vlastný plán. `
+      :`Už nemá žiadne naplánované ${id==="vo"?"vonkajšie":"vnútorné"} smeny. `;
+    return`${pre}Do 90 % chýba <strong>${c90}</strong>, do 100 % chýba <strong>${c100}</strong>.`;
+  }
+  const per=(r,g)=>Math.ceil((r.v+g*r.v/sum)/r.n-1e-9);   // koľko na jednu smenu daného typu
+  const line=g=>rows.map(r=>`${TYPELBL[r.t]} (${r.n}×) <strong>${per(r,g)}${r.u?" "+r.u:""}</strong>`).join(" · ");
+  if(g100>0){
+    let h=g90>0?`do 90 %: ${line(g90)}<br>`:"";
+    return h+`do 100 %: ${line(g100)}`;
+  }
+  return`<span class="ok">✓ Plán 100 % splnený</span><br>plán na zostávajúce smeny: ${line(0)}`;
 }
 
 function rewards(list,id,data){
   const tb=document.getElementById(id);
   if(!list||!list.length){tb.innerHTML='<tr><td colspan="4" style="padding:14px;color:#6b7280">Žiadne záznamy odmien.</td></tr>';return;}
   tb.innerHTML=list.map((it,i)=>{
-    const sid=`${id}-${i}`, has=it.c&&it.c.length, left=shiftsLeft(data,id,it.n);
+    const sid=`${id}-${i}`, has=it.c&&it.c.length, cnt=shiftsByType(data,id,it.n);
     const mine=!!(me&&baseName(it.n)===baseName(me));
     let h=`<tr class="rw${mine?" mine":""}" onclick="tog('${sid}')"><td class="emp">${esc(it.n)}${has?' <span style="font-size:10px;color:#9aa1ab">▼</span>':""}</td>
       <td>${it.rank!=null?it.rank+".":"-"}</td>
       <td>${it.pl?(it.pl*100).toFixed(1)+" %":"-"}</td>
       <td><strong>${it.tot!=null?it.tot.toFixed(2)+" €":"-"}</strong></td></tr>`;
     if(has)h+=`<tr id="${sid}" class="dt${mine?" mine":""}"><td colspan="4">`+it.c.map(c=>
-      `<span class="chip"><strong>${esc(c[0])}:</strong> plán ${c[1]} · skutočnosť ${c[2]} (${(c[3]*100).toFixed(0)} %) · <strong>${c[4].toFixed(2)} €</strong><br><span class="gap">${gap(c,left)}</span></span>`).join("")+"</td></tr>";
+      `<span class="chip"><strong>${esc(c[0])}:</strong> plán ${c[1]} · skutočnosť ${c[2]} (${(c[3]*100).toFixed(0)} %) · <strong>${c[4].toFixed(2)} €</strong><br><span class="gap">${gap2(data,id,c,cnt)}</span></span>`).join("")+"</td></tr>";
     return h;
   }).join("");
 }

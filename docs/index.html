@@ -394,12 +394,6 @@ function shiftsByType(data,id,name){
   });
   return cnt;
 }
-// počet ešte naplánovaných smien, ktoré sa počítajú pre daný zoznam odmien
-function shiftsLeft(data,id,name){
-  const cnt=shiftsByType(data,id,name);
-  if(!cnt)return null;
-  return (REWTYPES[id]||[]).reduce((s,t)=>s+cnt[t],0);
-}
 // denný plán tovaru pre daný typ smeny (z Excelu, list PLANY)
 function planOf(data,type,cat){
   const P=(data&&data.plans&&data.plans[type])||{};
