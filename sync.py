@@ -274,8 +274,7 @@ def main():
     while True:
         try:
             sig = signature()
-            settled = all(time.time() - mt > 5 for _, mt in sig)   # počká na dokončenie ukladania v Exceli
-            if sig != last and settled:
+            if sig != last:                        # zmena súboru → hneď spracuj (ak Excel ešte píše, ďalší cyklus to zopakuje)
                 if process_all():
                     pending = True
                 last = sig
